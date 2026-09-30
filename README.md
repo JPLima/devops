@@ -3,7 +3,8 @@
 Three tasks, one repository. Terraform throughout.
 
 The brief is transcribed in [`docs/CHALLENGE.md`](docs/CHALLENGE.md), so the
-requirements and the work sit side by side.
+requirements and the work sit side by side. A Portuguese translation is in
+[`docs/CHALLENGE.pt.md`](docs/CHALLENGE.pt.md).
 
 | Task | What it is | Where |
 |---|---|---|
