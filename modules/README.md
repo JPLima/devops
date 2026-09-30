@@ -35,7 +35,26 @@ git tag -a v1.1.0 -m "..." && git push origin v1.1.0
 
 Bump the minor version for a backwards-compatible addition, the major for a
 breaking change to a module's interface, the patch for a fix that changes no
-inputs or outputs.
+inputs or outputs. [`CHANGELOG.md`](CHANGELOG.md) records what each version
+changed.
+
+### Tags must be immutable
+
+A git tag is a mutable pointer. Anyone with write access can move `v1.0.0` to
+a different commit, and every later `terraform init` then pulls different code
+under the same ref, with nothing changing in any root configuration to show it.
+
+Checkov's `CKV_TF_1` flags exactly this and would rather see a commit SHA. We
+use tags anyway, because a version is something a human reads in a diff:
+"v1.0.0 to v1.1.0" says what happened, where "4840a3b to 9c2f1de" says nothing,
+so nobody reads it and the upgrade stops being reviewed.
+
+That trade is only sound if the tags cannot move, which is a repository
+setting rather than a Terraform one. Add a tag protection rule for `v*` under
+Settings, Rules, refusing updates and deletions. The reasoning is written out
+in `.checkov.yaml` next to the suppression.
+
+For a module published by someone else, pin the SHA.
 
 Nothing consumes a module until a tag points at it. That is the trade-off of
 versioning rather than referencing the working tree, and it is worth being

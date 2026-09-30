@@ -13,7 +13,7 @@
 # ---------------------------------------------------------------------------
 
 module "observability_key" {
-  source = "../modules/kms-key"
+  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.0.0"
 
   alias       = "${local.name_prefix}-observability"
   description = "Encrypts CloudTrail, VPC flow logs and AWS Config data"
@@ -29,7 +29,7 @@ module "observability_key" {
 }
 
 module "data_key" {
-  source = "../modules/kms-key"
+  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.0.0"
 
   alias       = "${local.name_prefix}-data"
   description = "Encrypts EBS volumes and the application data bucket"
@@ -40,7 +40,7 @@ module "data_key" {
 }
 
 module "secrets_key" {
-  source = "../modules/kms-key"
+  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.0.0"
 
   alias       = "${local.name_prefix}-secrets"
   description = "Encrypts Secrets Manager secrets"
@@ -55,7 +55,7 @@ module "secrets_key" {
 # ---------------------------------------------------------------------------
 
 module "vpc" {
-  source = "../modules/vpc"
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
 
   name       = local.name_prefix
   cidr_block = var.vpc_cidr
@@ -188,7 +188,7 @@ resource "aws_s3_bucket_policy" "data" {
 # ---------------------------------------------------------------------------
 
 module "app_secret" {
-  source = "../modules/secret"
+  source = "git::https://github.com/JPLima/devops.git//modules/secret?ref=v1.0.0"
 
   name        = "${local.name_prefix}/application/database"
   description = "Database credential for the ${local.name_prefix} application"
@@ -203,7 +203,7 @@ module "app_secret" {
 # ---------------------------------------------------------------------------
 
 module "iam" {
-  source = "../modules/iam-instance-role"
+  source = "git::https://github.com/JPLima/devops.git//modules/iam-instance-role?ref=v1.0.0"
 
   name            = "${local.name_prefix}-app"
   data_bucket_arn = aws_s3_bucket.data.arn
@@ -221,7 +221,7 @@ module "iam" {
 # port 22 would add a host to patch, a key to distribute and revoke, and an
 # audit trail in sshd logs rather than CloudTrail.
 module "app_sg" {
-  source = "../modules/security-group"
+  source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.0.0"
 
   name        = "${local.name_prefix}-app"
   description = "Private application instance for ${local.name_prefix}"
@@ -246,7 +246,7 @@ module "app_sg" {
 }
 
 module "compute" {
-  source = "../modules/ec2"
+  source = "git::https://github.com/JPLima/devops.git//modules/ec2?ref=v1.0.0"
 
   name               = "${local.name_prefix}-app"
   subnet_id          = module.vpc.private_subnet_ids[0]
@@ -268,7 +268,7 @@ module "compute" {
 # ---------------------------------------------------------------------------
 
 module "logging" {
-  source = "../modules/cloudtrail"
+  source = "git::https://github.com/JPLima/devops.git//modules/cloudtrail?ref=v1.0.0"
 
   name               = local.name_prefix
   bucket_name        = "${local.name_prefix}-cloudtrail-${local.bucket_suffix}"
@@ -279,7 +279,7 @@ module "logging" {
 }
 
 module "config" {
-  source = "../modules/aws-config"
+  source = "git::https://github.com/JPLima/devops.git//modules/aws-config?ref=v1.0.0"
 
   name        = local.name_prefix
   bucket_name = "${local.name_prefix}-config-${local.bucket_suffix}"
@@ -289,7 +289,7 @@ module "config" {
 }
 
 module "alerting" {
-  source = "../modules/security-alerting"
+  source = "git::https://github.com/JPLima/devops.git//modules/security-alerting?ref=v1.0.0"
 
   name                = local.name_prefix
   log_group_name      = module.logging.log_group_name

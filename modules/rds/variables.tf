@@ -76,9 +76,15 @@ variable "port" {
 }
 
 variable "multi_az" {
-  description = "Run a standby in a second availability zone."
+  description = <<-EOT
+    Run a synchronous standby in a second availability zone.
+
+    True by default. High availability should be something you opt out of for
+    a throwaway environment, not something you remember to opt into for a
+    production one. Roughly doubles the instance cost.
+  EOT
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "backup_retention_period" {

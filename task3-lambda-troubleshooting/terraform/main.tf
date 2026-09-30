@@ -62,7 +62,7 @@ resource "aws_s3_bucket_versioning" "my_bucket" {
 # through the bucket's encryption, so this introduces no new AWS service; it
 # replaces the AWS-managed key with one whose policy and rotation are ours.
 module "bucket_key" {
-  source = "../../modules/kms-key"
+  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.0.0"
 
   alias                   = "${var.function_name}-data"
   description             = "Encrypts objects written by ${var.function_name}, its log group and its environment variables"

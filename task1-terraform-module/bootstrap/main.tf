@@ -80,7 +80,7 @@ data "aws_iam_policy_document" "state_bucket" {
 # The same module the rest of the repository uses. S3 and DynamoDB authorise
 # through the caller's IAM identity, so no service grant is needed.
 module "state_key" {
-  source = "../../modules/kms-key"
+  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.0.0"
 
   alias       = "${var.project}-terraform-state"
   description = "Encrypts Terraform state for ${var.project}"

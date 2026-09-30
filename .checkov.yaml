@@ -1,8 +1,9 @@
 # Checkov configuration.
 #
-# Inline `#checkov:skip` comments carry the individual exceptions, each next to
-# the code it applies to and each with a reason. This file only excludes paths
-# that are not ours to fix.
+# Individual exceptions are inline `#checkov:skip` comments, next to the code
+# they apply to and each with a reason. Only two things belong in this file:
+# paths that are not ours to fix, and one repository-wide policy decision.
+
 directory:
   - .
 
@@ -14,3 +15,32 @@ skip-path:
   # task3-lambda-troubleshooting/FIXES.md. Hardening them would destroy the
   # before-and-after the document depends on.
   - task3-lambda-troubleshooting/original
+
+skip-check:
+  # CKV_TF_1, "Ensure Terraform module sources use a commit hash".
+  #
+  # This is a policy decision for the whole repository, not an exception to
+  # one, which is why it is here rather than repeated inline nineteen times.
+  #
+  # The check is right about the risk. A git tag is a mutable pointer: anyone
+  # with write access can move v1.0.0 to a different commit, and every
+  # subsequent `terraform init` then pulls different code under the same ref
+  # without a single line changing in any root configuration. A commit SHA
+  # cannot move.
+  #
+  # We use tags anyway, deliberately:
+  #
+  #   - A version is something a human reads in a diff. "v1.0.0 to v1.1.0"
+  #     says what happened; "4840a3b to 9c2f1de" says nothing, so nobody reads
+  #     it and the upgrade stops being reviewed.
+  #   - The risk is a compromised or careless maintainer of this repository.
+  #     That is the same person who could push a malicious commit and tag it,
+  #     so pinning by SHA narrows the window rather than closing it.
+  #   - GitHub can enforce the immutability this check is really asking for:
+  #     a tag protection rule refusing updates and deletions on v*. That moves
+  #     the guarantee to where it can be enforced, instead of to a string in
+  #     twenty source attributes.
+  #
+  # If this repository is ever consumed by anyone outside the account that
+  # owns it, revisit this: for a third-party module, pin the SHA.
+  - CKV_TF_1
