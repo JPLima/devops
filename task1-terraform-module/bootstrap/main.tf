@@ -27,7 +27,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "state" {
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm     = "aws:kms"
-      kms_master_key_id = aws_kms_key.state.arn
+      kms_master_key_id = module.state_key.arn
     }
     bucket_key_enabled = true
   }
@@ -76,15 +76,19 @@ data "aws_iam_policy_document" "state_bucket" {
 
 # Customer-managed key rather than the AWS-managed S3 key, so key rotation and
 # key policy are ours to audit.
-resource "aws_kms_key" "state" {
-  description             = "Encrypts Terraform state for ${var.project}"
-  enable_key_rotation     = true
-  deletion_window_in_days = 30
-}
+#
+# The same module the rest of the repository uses. S3 and DynamoDB authorise
+# through the caller's IAM identity, so no service grant is needed.
+module "state_key" {
+  source = "../../modules/kms-key"
 
-resource "aws_kms_alias" "state" {
-  name          = "alias/${var.project}-terraform-state"
-  target_key_id = aws_kms_key.state.key_id
+  alias       = "${var.project}-terraform-state"
+  description = "Encrypts Terraform state for ${var.project}"
+
+  tags = {
+    Project   = var.project
+    Component = "terraform-backend"
+  }
 }
 
 # State locking. One item per state file, keyed by LockID, which is the schema
@@ -101,7 +105,7 @@ resource "aws_dynamodb_table" "locks" {
 
   server_side_encryption {
     enabled     = true
-    kms_key_arn = aws_kms_key.state.arn
+    kms_key_arn = module.state_key.arn
   }
 
   point_in_time_recovery {

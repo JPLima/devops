@@ -1,0 +1,16 @@
+# Checkov configuration.
+#
+# Inline `#checkov:skip` comments carry the individual exceptions, each next to
+# the code it applies to and each with a reason. This file only excludes paths
+# that are not ours to fix.
+directory:
+  - .
+
+framework:
+  - terraform
+
+skip-path:
+  # The challenge's broken files, preserved unmodified as evidence for
+  # task3-lambda-troubleshooting/FIXES.md. Hardening them would destroy the
+  # before-and-after the document depends on.
+  - task3-lambda-troubleshooting/original

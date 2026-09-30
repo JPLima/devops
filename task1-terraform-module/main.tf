@@ -11,17 +11,16 @@
 # storage and Performance Insights. AWS-managed keys encrypt just as well, but
 # their policy and rotation schedule cannot be inspected or changed, which is
 # the part an auditor asks about.
-resource "aws_kms_key" "data" {
-  description             = "Encrypts EBS and RDS storage for ${local.name_prefix}"
-  enable_key_rotation     = true
-  deletion_window_in_days = 30
+#
+# No service principals: EBS and RDS authorise through the caller's IAM
+# identity, so the account root statement in the module is enough.
+module "data_key" {
+  source = "../modules/kms-key"
 
-  tags = merge(local.tags, { Name = "${local.name_prefix}-data" })
-}
+  alias       = "${local.name_prefix}-data"
+  description = "Encrypts EBS and RDS storage for ${local.name_prefix}"
 
-resource "aws_kms_alias" "data" {
-  name          = "alias/${local.name_prefix}-data"
-  target_key_id = aws_kms_key.data.key_id
+  tags = local.tags
 }
 
 module "vpc" {
@@ -120,7 +119,7 @@ module "ec2" {
   subnet_id          = module.vpc.public_subnet_ids[0]
   security_group_ids = [module.web_sg.id]
   instance_type      = local.config.instance_type
-  kms_key_arn        = aws_kms_key.data.arn
+  kms_key_arn        = module.data_key.arn
 
   tags = local.tags
 }
@@ -140,7 +139,7 @@ module "rds" {
   deletion_protection     = local.config.deletion_protection
   skip_final_snapshot     = local.config.skip_final_snapshot
 
-  kms_key_arn = aws_kms_key.data.arn
+  kms_key_arn = module.data_key.arn
   password    = var.db_password
 
   tags = local.tags

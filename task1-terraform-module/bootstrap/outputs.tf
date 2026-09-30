@@ -10,7 +10,7 @@ output "lock_table" {
 
 output "kms_key_arn" {
   description = "KMS key encrypting state and lock entries."
-  value       = aws_kms_key.state.arn
+  value       = module.state_key.arn
 }
 
 output "backend_block" {

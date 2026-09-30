@@ -60,7 +60,7 @@ output "web_ingress_rule_ids" {
 
 output "kms_key_arn" {
   description = "Customer-managed key encrypting EBS and RDS storage."
-  value       = aws_kms_key.data.arn
+  value       = module.data_key.arn
 }
 
 output "db_security_group_id" {

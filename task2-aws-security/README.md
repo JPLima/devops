@@ -202,9 +202,8 @@ tflint --recursive
 checkov -d . --framework terraform
 ```
 
-Checkov passes with no failures. Fourteen checks are skipped across the
-repository, each with an inline `#checkov:skip` and a reason. The substantive
-ones:
+Checkov passes with no failures. The skipped checks each carry an inline
+`#checkov:skip` and a reason. The substantive ones:
 
 - **`CKV_AWS_109`, `CKV_AWS_111`, `CKV_AWS_356` on the KMS key policy.** Every
   key policy needs a statement granting the account root `kms:*` on `*`. IAM

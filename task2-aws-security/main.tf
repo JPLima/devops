@@ -13,7 +13,7 @@
 # ---------------------------------------------------------------------------
 
 module "observability_key" {
-  source = "./modules/kms-key"
+  source = "../modules/kms-key"
 
   alias       = "${local.name_prefix}-observability"
   description = "Encrypts CloudTrail, VPC flow logs and AWS Config data"
@@ -29,7 +29,7 @@ module "observability_key" {
 }
 
 module "data_key" {
-  source = "./modules/kms-key"
+  source = "../modules/kms-key"
 
   alias       = "${local.name_prefix}-data"
   description = "Encrypts EBS volumes and the application data bucket"
@@ -40,7 +40,7 @@ module "data_key" {
 }
 
 module "secrets_key" {
-  source = "./modules/kms-key"
+  source = "../modules/kms-key"
 
   alias       = "${local.name_prefix}-secrets"
   description = "Encrypts Secrets Manager secrets"

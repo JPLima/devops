@@ -1,11 +1,16 @@
-.terraform/
-.terraform.lock.hcl
+# Provider plugins and build output, not the lock file: .terraform.lock.hcl is
+# committed on purpose, so every machine and CI run resolves the same provider
+# versions.
 *.tfstate
 *.tfstate.*
-crash.log
 *.tfvars.local
-.DS_Store
-__pycache__/
 *.zip
+.DS_Store
+.build/
 .pytest_cache/
+.terraform/
+.venv/
+__pycache__/
 backend.hcl
+crash.log
+venv/
