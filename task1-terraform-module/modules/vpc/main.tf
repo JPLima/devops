@@ -5,7 +5,16 @@
 # works for any VPC size without the caller recalculating anything.
 
 data "aws_availability_zones" "available" {
+  #checkov:skip=CKV_AWS_394: Pinning zone ids would tie the module to one region. The opt-in filter below excludes Local Zones and Wavelength zones, which is the result-set expansion that actually matters, and slice() bounds the count.
   state = "available"
+
+  # Standard zones only. Without this, a Local Zone or Wavelength zone can
+  # appear in the list and a subnet lands somewhere that does not support the
+  # services the workload needs.
+  filter {
+    name   = "opt-in-status"
+    values = ["opt-in-not-required"]
+  }
 }
 
 locals {
@@ -52,8 +61,7 @@ resource "aws_subnet" "public" {
   availability_zone = each.key
   cidr_block        = local.public_subnet_cidrs[each.value]
 
-  # Instances here are reachable from the internet by design. The private
-  # subnets below are where anything stateful belongs.
+  #checkov:skip=CKV_AWS_130: This is the public subnet. Instances here are internet-facing by design; anything stateful belongs in the private subnets below.
   map_public_ip_on_launch = true
 
   tags = merge(var.tags, {

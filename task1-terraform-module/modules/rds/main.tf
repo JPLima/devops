@@ -27,6 +27,38 @@ resource "aws_db_parameter_group" "this" {
   }
 }
 
+# Enhanced monitoring publishes to CloudWatch Logs under an AWS-owned account,
+# so it needs a role of its own rather than the instance's.
+data "aws_iam_policy_document" "monitoring_assume" {
+  count = var.monitoring_interval > 0 ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["monitoring.rds.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "monitoring" {
+  count = var.monitoring_interval > 0 ? 1 : 0
+
+  name_prefix        = "${var.name}-monitoring-"
+  assume_role_policy = data.aws_iam_policy_document.monitoring_assume[0].json
+
+  tags = merge(var.tags, { Name = "${var.name}-monitoring" })
+}
+
+resource "aws_iam_role_policy_attachment" "monitoring" {
+  count = var.monitoring_interval > 0 ? 1 : 0
+
+  role       = aws_iam_role.monitoring[0].name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
 resource "aws_db_instance" "this" {
   identifier = var.name
 
@@ -67,8 +99,14 @@ resource "aws_db_instance" "this" {
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name}-final-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
-  performance_insights_enabled    = true
   copy_tags_to_snapshot           = true
+
+  monitoring_interval = var.monitoring_interval
+  monitoring_role_arn = var.monitoring_interval > 0 ? aws_iam_role.monitoring[0].arn : null
+
+  performance_insights_enabled          = true
+  performance_insights_kms_key_id       = var.kms_key_arn
+  performance_insights_retention_period = var.performance_insights_retention_period
 
   tags = merge(var.tags, { Name = var.name })
 

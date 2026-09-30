@@ -7,6 +7,23 @@
 #
 # Everything that differs between environments lives in local.environments.
 
+# One customer-managed key for the workload's storage: EBS root volumes, RDS
+# storage and Performance Insights. AWS-managed keys encrypt just as well, but
+# their policy and rotation schedule cannot be inspected or changed, which is
+# the part an auditor asks about.
+resource "aws_kms_key" "data" {
+  description             = "Encrypts EBS and RDS storage for ${local.name_prefix}"
+  enable_key_rotation     = true
+  deletion_window_in_days = 30
+
+  tags = merge(local.tags, { Name = "${local.name_prefix}-data" })
+}
+
+resource "aws_kms_alias" "data" {
+  name          = "alias/${local.name_prefix}-data"
+  target_key_id = aws_kms_key.data.key_id
+}
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -103,6 +120,7 @@ module "ec2" {
   subnet_id          = module.vpc.public_subnet_ids[0]
   security_group_ids = [module.web_sg.id]
   instance_type      = local.config.instance_type
+  kms_key_arn        = aws_kms_key.data.arn
 
   tags = local.tags
 }
@@ -122,7 +140,8 @@ module "rds" {
   deletion_protection     = local.config.deletion_protection
   skip_final_snapshot     = local.config.skip_final_snapshot
 
-  password = var.db_password
+  kms_key_arn = aws_kms_key.data.arn
+  password    = var.db_password
 
   tags = local.tags
 }

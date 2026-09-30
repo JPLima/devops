@@ -20,6 +20,7 @@ data "aws_ami" "amazon_linux" {
 }
 
 resource "aws_instance" "this" {
+  #checkov:skip=CKV_AWS_88: Task 1 asks for a public web tier, and the caller decides through associate_public_ip_address. Task 2 is the private-by-default design, where this instance has no public IP and no inbound rules at all.
   ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
 
@@ -47,6 +48,9 @@ resource "aws_instance" "this" {
     http_put_response_hop_limit = 1
     instance_metadata_tags      = "enabled"
   }
+
+  # Dedicated bandwidth to EBS instead of sharing the network interface.
+  ebs_optimized = true
 
   monitoring = true
 

@@ -58,6 +58,11 @@ output "web_ingress_rule_ids" {
   value       = module.web_sg.ingress_rule_ids
 }
 
+output "kms_key_arn" {
+  description = "Customer-managed key encrypting EBS and RDS storage."
+  value       = aws_kms_key.data.arn
+}
+
 output "db_security_group_id" {
   description = "Database tier security group id."
   value       = module.db_sg.id

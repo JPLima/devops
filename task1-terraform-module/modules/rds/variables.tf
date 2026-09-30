@@ -100,9 +100,34 @@ variable "skip_final_snapshot" {
 }
 
 variable "kms_key_arn" {
-  description = "Customer-managed key for storage encryption. Null uses the AWS-managed RDS key."
+  description = <<-EOT
+    Customer-managed key for storage encryption, Performance Insights and
+    exported logs. Null falls back to the AWS-managed RDS key, which encrypts
+    just as well but cannot have its policy or rotation audited.
+  EOT
   type        = string
   default     = null
+}
+
+variable "monitoring_interval" {
+  description = <<-EOT
+    Seconds between enhanced monitoring samples. Enhanced monitoring reads from
+    the host rather than the hypervisor, so it sees per-process CPU and memory
+    that basic CloudWatch metrics cannot. Zero disables it.
+  EOT
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = contains([0, 1, 5, 10, 15, 30, 60], var.monitoring_interval)
+    error_message = "monitoring_interval must be one of 0, 1, 5, 10, 15, 30 or 60."
+  }
+}
+
+variable "performance_insights_retention_period" {
+  description = "Days of Performance Insights history. 7 is the free tier."
+  type        = number
+  default     = 7
 }
 
 variable "tags" {
