@@ -50,7 +50,7 @@ repository root and is consumed by git URL at a version tag:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.1.0"
   ...
 }
 ```

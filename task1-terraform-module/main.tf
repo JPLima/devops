@@ -15,7 +15,7 @@
 # No service principals: EBS and RDS authorise through the caller's IAM
 # identity, so the account root statement in the module is enough.
 module "data_key" {
-  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.1.0"
 
   alias       = "${local.name_prefix}-data"
   description = "Encrypts EBS and RDS storage for ${local.name_prefix}"
@@ -24,7 +24,7 @@ module "data_key" {
 }
 
 module "vpc" {
-  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.1.0"
 
   name       = local.name_prefix
   cidr_block = local.config.vpc_cidr
@@ -50,7 +50,7 @@ module "vpc" {
 #
 # The security group and the other rules are untouched.
 module "web_sg" {
-  source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.1.0"
 
   name        = "${local.name_prefix}-web"
   description = "Web tier for ${local.name_prefix}"
@@ -94,7 +94,7 @@ module "web_sg" {
 # CIDR. Instances can be replaced, scaled or renumbered and the rule stays
 # correct without anyone editing it.
 module "db_sg" {
-  source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.1.0"
 
   name        = "${local.name_prefix}-db"
   description = "Database tier for ${local.name_prefix}"
@@ -118,7 +118,7 @@ module "db_sg" {
 }
 
 module "ec2" {
-  source = "git::https://github.com/JPLima/devops.git//modules/ec2?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/ec2?ref=v1.1.0"
 
   name               = "${local.name_prefix}-web"
   subnet_id          = module.vpc.public_subnet_ids[0]
@@ -133,7 +133,7 @@ module "ec2" {
 }
 
 module "rds" {
-  source = "git::https://github.com/JPLima/devops.git//modules/rds?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/rds?ref=v1.1.0"
 
   name               = "${local.name_prefix}-db"
   subnet_ids         = module.vpc.private_subnet_ids

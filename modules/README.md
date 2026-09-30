@@ -11,7 +11,7 @@ relative path:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.1.0"
 
   name       = "myapp-production"
   cidr_block = "10.20.0.0/16"

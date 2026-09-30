@@ -19,7 +19,7 @@ by git URL at a version tag:
 
 ```hcl
 module "vpc" {
-  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.1.0"
   ...
 }
 ```
@@ -121,11 +121,19 @@ deliverable is validated code, and this is what backs that claim:
 ```bash
 terraform fmt -check -recursive
 
+# Root configurations. init fetches the modules from the git tag, so this
+# needs network access.
 for dir in task1-terraform-module task1-terraform-module/bootstrap \
-           task2-aws-security task3-lambda-troubleshooting/terraform \
-           modules/security-group modules/kms-key; do
+           task2-aws-security task3-lambda-troubleshooting/terraform; do
   terraform -chdir="$dir" init -backend=false -input=false
   TF_WORKSPACE=staging terraform -chdir="$dir" validate
+done
+
+# Every module on its own, so a break is attributed to the module rather
+# than to whichever root happened to use it.
+for dir in modules/*/; do
+  terraform -chdir="$dir" init -backend=false -input=false
+  terraform -chdir="$dir" validate
 done
 
 TF_WORKSPACE=staging tflint --recursive --minimum-failure-severity=warning
@@ -142,9 +150,9 @@ Current state:
 | Check | Result |
 |---|---|
 | `terraform fmt -check -recursive` | clean |
-| `terraform validate`, six configurations | all pass |
+| `terraform validate`, 4 roots and 10 modules | all pass |
 | `tflint --recursive` | no findings |
-| `checkov` | 382 passed, 0 failed, 26 skipped |
+| `checkov` | 284 passed, 0 failed, 10 skipped |
 | `pytest` | 8 passed |
 
 Every checkov skip is an inline `#checkov:skip` next to the code it applies to,
@@ -157,6 +165,12 @@ one directory from both tools: the challenge's original broken files, kept
 unmodified as the evidence behind `FIXES.md`. Linting them would report the
 very defects that document explains, and hardening them would destroy the
 before-and-after it depends on.
+
+`.checkov.yaml` also suppresses one check repository-wide, `CKV_TF_1`, which
+wants module sources pinned to a commit hash rather than a tag. That is a
+policy decision rather than a per-resource exception, the reasoning is written
+out next to the suppression, and it is only sound with a tag protection rule
+in place. See [`modules/README.md`](modules/README.md#tags-must-be-immutable).
 
 `TF_WORKSPACE=staging` is needed because Task 1 indexes its per-environment
 settings by workspace name and deliberately has no entry for `default`. An
