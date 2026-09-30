@@ -2,6 +2,9 @@
 
 Three tasks, one repository. Terraform throughout.
 
+The brief is transcribed in [`docs/CHALLENGE.md`](docs/CHALLENGE.md), so the
+requirements and the work sit side by side.
+
 | Task | What it is | Where |
 |---|---|---|
 | 1 | VPC, EC2 and RDS from modules, remote state in S3 with DynamoDB locking, environments as workspaces | [`task1-terraform-module/`](task1-terraform-module/) |
