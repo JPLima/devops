@@ -101,25 +101,24 @@ security-group module at its own version rather than letting the two drift.
 | [`security-alerting/`](security-alerting/) | Metric filters and alarms on the events worth paging for |
 | [`secret/`](secret/) | A generated credential in Secrets Manager |
 
-`security-group/` and `kms-key/` have READMEs of their own, because their
-design is the argument rather than the implementation. The rest document
-themselves through their variable descriptions and inline comments; run
-`terraform-docs` against any of them for a generated reference.
+Every module has a README of its own: what it is for, a worked example for
+each way it is meant to be used, its full inputs and outputs, and the notes
+that save someone an afternoon. Start there rather than in the `.tf` files.
 
 ## Which modules each task uses
 
 | Module | Task 1 | Task 2 | Task 3 |
 |---|:---:|:---:|:---:|
-| `security-group` | yes | yes | |
-| `kms-key` | yes | yes | yes |
-| `vpc` | yes | yes | |
-| `ec2` | yes | yes | |
-| `rds` | yes | | |
-| `iam-instance-role` | | yes | |
-| `cloudtrail` | | yes | |
-| `aws-config` | | yes | |
-| `security-alerting` | | yes | |
-| `secret` | | yes | |
+| [`security-group`](security-group/) | yes | yes | |
+| [`kms-key`](kms-key/) | yes | yes | yes |
+| [`vpc`](vpc/) | yes | yes | |
+| [`ec2`](ec2/) | yes | yes | |
+| [`rds`](rds/) | yes | | |
+| [`iam-instance-role`](iam-instance-role/) | | yes | |
+| [`cloudtrail`](cloudtrail/) | | yes | |
+| [`aws-config`](aws-config/) | | yes | |
+| [`security-alerting`](security-alerting/) | | yes | |
+| [`secret`](secret/) | | yes | |
 
 Two rows are worth pausing on.
 

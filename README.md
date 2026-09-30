@@ -31,16 +31,16 @@ scheme, and the one real drawback of pinning to tags.
 
 | Module | Task 1 | Task 2 | Task 3 |
 |---|:---:|:---:|:---:|
-| `security-group` | yes | yes | |
-| `kms-key` | yes | yes | yes |
-| `vpc` | yes | yes | |
-| `ec2` | yes | yes | |
-| `rds` | yes | | |
-| `iam-instance-role` | | yes | |
-| `cloudtrail` | | yes | |
-| `aws-config` | | yes | |
-| `security-alerting` | | yes | |
-| `secret` | | yes | |
+| [`security-group`](modules/security-group/) | yes | yes | |
+| [`kms-key`](modules/kms-key/) | yes | yes | yes |
+| [`vpc`](modules/vpc/) | yes | yes | |
+| [`ec2`](modules/ec2/) | yes | yes | |
+| [`rds`](modules/rds/) | yes | | |
+| [`iam-instance-role`](modules/iam-instance-role/) | | yes | |
+| [`cloudtrail`](modules/cloudtrail/) | | yes | |
+| [`aws-config`](modules/aws-config/) | | yes | |
+| [`security-alerting`](modules/security-alerting/) | | yes | |
+| [`secret`](modules/secret/) | | yes | |
 
 ## Layout
 
