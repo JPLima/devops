@@ -110,7 +110,7 @@ Current state:
 | Check | Result |
 |---|---|
 | `terraform fmt -check -recursive` | clean |
-| `terraform validate`, six root modules | all pass |
+| `terraform validate`, six configurations | all pass |
 | `tflint --recursive` | no findings |
 | `checkov` | 382 passed, 0 failed, 26 skipped |
 | `pytest` | 8 passed |
