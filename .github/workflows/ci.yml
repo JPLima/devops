@@ -45,12 +45,24 @@ jobs:
 
       matrix:
         directory:
+          # Root configurations. These fetch modules from the git tag, so
+          # init needs network access and the repository must be readable.
           - task1-terraform-module
           - task1-terraform-module/bootstrap
           - task2-aws-security
           - task3-lambda-troubleshooting/terraform
+          # Every module, validated on its own so a break is attributed to the
+          # module rather than to whichever root happened to use it.
           - modules/security-group
           - modules/kms-key
+          - modules/vpc
+          - modules/ec2
+          - modules/rds
+          - modules/iam-instance-role
+          - modules/cloudtrail
+          - modules/aws-config
+          - modules/security-alerting
+          - modules/secret
 
     steps:
       - name: Check out

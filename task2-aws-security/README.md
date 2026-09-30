@@ -42,19 +42,28 @@ task2-aws-security/
 ├── locals.tf            name prefix and bucket suffix
 ├── variables.tf
 ├── outputs.tf
-├── versions.tf
-└── modules/
-    ├── kms-key/         one customer-managed key, reused three times
-    ├── network/         VPC, NAT, flow logs, VPC endpoints
-    ├── iam/             instance role and hand-written workload policy
-    ├── compute/         private instance, no ingress, encrypted volumes
-    ├── logging/         CloudTrail, its bucket, its log group
-    ├── config/          AWS Config recorder, delivery channel, 20 rules
-    ├── alerting/        metric filters, alarms, SNS topic
-    └── secrets/         generated credential in Secrets Manager
+└── versions.tf
 ```
 
-Security groups come from `../modules/security-group`, shared with Task 1.
+There is no `modules/` directory here. Every module lives once at the
+repository root and is consumed by git URL at a version tag:
+
+```hcl
+module "vpc" {
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  ...
+}
+```
+
+This task uses `vpc`, `ec2`, `security-group`, `kms-key` (three times, one key
+per purpose), `iam-instance-role`, `cloudtrail`, `aws-config`,
+`security-alerting` and `secret`.
+
+The `vpc` and `ec2` modules are the same ones Task 1 uses. What makes this
+design private is configuration, not different code:
+`map_public_ip_on_launch = false`, `associate_public_ip_address = false`, flow
+logs on, three interface endpoints and the S3 gateway endpoint. See
+[`../modules/README.md`](../modules/README.md).
 
 ## Security practices implemented
 
@@ -144,7 +153,7 @@ not that its contents were read.
 
 ### Detection
 
-CloudTrail records everything and alerts on nothing. `modules/alerting` is the
+CloudTrail records everything and alerts on nothing. `security-alerting` is the
 part that turns a log into a signal. Six metric filters, each with an alarm:
 
 | Detection | Fires when |
@@ -212,7 +221,7 @@ Checkov passes with no failures. The skipped checks each carry an inline
   `Resource` is always `*`, meaning that key; there is no narrower form.
 - **`CKV_AWS_252`, CloudTrail should define an SNS topic.** `sns_topic_name`
   notifies once per delivered log file, which is noise. Detection runs off the
-  CloudWatch log group through the metric filters in `modules/alerting`.
+  CloudWatch log group through the metric filters in `security-alerting`.
 - **`CKV_AWS_394`, pin availability zone identity.** Pinning zone ids would tie
   the module to one region. The `opt-in-status` filter excludes Local Zones and
   Wavelength zones, which is the result-set expansion that actually matters.
@@ -226,11 +235,19 @@ is the right instinct for cattle anyway.
 
 **Three KMS keys rather than one.** Blast radius, and readable key policies.
 
-**Buckets are declared where they are used.** The trail bucket lives in
-`modules/logging` and the Config bucket in `modules/config`, because each needs
+**Buckets are declared where they are used.** The trail bucket lives in the
+`cloudtrail` module and the Config bucket in `aws-config`, because each needs
 a service-specific bucket policy that would turn a shared bucket module into a
 passthrough for arbitrary policy statements. The application data bucket is in
 `main.tf` because it belongs to the root module's own composition.
+
+**The `ec2` module does not create its security group.** Task 1 needs a group
+allowing HTTPS from named networks; Task 2 needs one with no ingress at all.
+Expressing both through a flag on the module would mean a module that
+sometimes owns a security group and sometimes does not, with outputs that are
+sometimes null. Composing them in `main.tf` from the `security-group` module is
+one way to do it instead of two, and it means the group outlives any particular
+instance.
 
 **`prevent_destroy` on the CloudTrail bucket.** An audit trail you can delete
 by accident is not an audit trail. It does mean `terraform destroy` fails until

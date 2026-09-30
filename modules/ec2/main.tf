@@ -1,10 +1,17 @@
 # An EC2 instance with the defaults AWS does not give you: encrypted storage,
-# IMDSv2 required, and an AMI resolved at plan time instead of hardcoded.
+# IMDSv2 required, no public address unless asked for, and an AMI resolved at
+# plan time instead of hardcoded.
+#
+# One module serves both a public web tier and a private instance reached
+# through SSM. The difference is associate_public_ip_address and which subnet
+# it lands in, not a second copy of this file.
 
 # Hardcoding an AMI id pins the instance to one region and one patch level.
 # Filtering by owner and name pattern keeps the configuration portable, and
 # the owner filter is what stops a lookalike AMI from matching.
 data "aws_ami" "amazon_linux" {
+  count = var.ami_id == null ? 1 : 0
+
   most_recent = true
   owners      = ["amazon"]
 
@@ -19,9 +26,13 @@ data "aws_ami" "amazon_linux" {
   }
 }
 
+locals {
+  ami_id = var.ami_id != null ? var.ami_id : data.aws_ami.amazon_linux[0].id
+}
+
 resource "aws_instance" "this" {
-  #checkov:skip=CKV_AWS_88: Task 1 asks for a public web tier, and the caller decides through associate_public_ip_address. Task 2 is the private-by-default design, where this instance has no public IP and no inbound rules at all.
-  ami           = data.aws_ami.amazon_linux.id
+  #checkov:skip=CKV_AWS_88: The caller decides, and it defaults to false. A public web tier opts in explicitly; the private design leaves it off and reaches the instance through SSM.
+  ami           = local.ami_id
   instance_type = var.instance_type
 
   subnet_id                   = var.subnet_id
@@ -40,8 +51,10 @@ resource "aws_instance" "this" {
     tags = merge(var.tags, { Name = "${var.name}-root" })
   }
 
-  # IMDSv2 only. Version 1 answers an unauthenticated GET, which is how a
-  # server-side request forgery bug turns into leaked role credentials.
+  # IMDSv2 only, and a hop limit of 1. Version 1 answers an unauthenticated
+  # GET, which is how a server-side request forgery bug in an application turns
+  # into leaked role credentials. The hop limit stops a container on the host
+  # from reaching the metadata service through the bridge.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
@@ -52,14 +65,17 @@ resource "aws_instance" "this" {
   # Dedicated bandwidth to EBS instead of sharing the network interface.
   ebs_optimized = true
 
-  monitoring = true
+  monitoring = var.detailed_monitoring
+
+  # No key_name. Access is SSM Session Manager, so there is no key pair to
+  # distribute, rotate or leak, and every session is a CloudTrail event.
 
   tags = merge(var.tags, { Name = var.name })
 
   lifecycle {
     # The AMI data source returns a newer id whenever Amazon publishes one.
     # Without this, an unrelated apply would replace a running instance.
-    # Replace deliberately by tainting or by bumping an explicit ami variable.
+    # Replace deliberately by tainting or by setting ami_id.
     ignore_changes = [ami]
   }
 }

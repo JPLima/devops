@@ -24,13 +24,18 @@ module "data_key" {
 }
 
 module "vpc" {
-  source = "./modules/vpc"
+  source = "../modules/vpc"
 
-  name               = local.name_prefix
-  cidr_block         = local.config.vpc_cidr
-  az_count           = local.config.az_count
+  name       = local.name_prefix
+  cidr_block = local.config.vpc_cidr
+  az_count   = local.config.az_count
+
   enable_nat_gateway = true
   single_nat_gateway = local.config.single_nat_gateway
+
+  # This task's web tier is internet-facing, so the public subnets hand out
+  # public addresses. The module defaults this to false.
+  map_public_ip_on_launch = true
 
   tags = local.tags
 }
@@ -113,7 +118,7 @@ module "db_sg" {
 }
 
 module "ec2" {
-  source = "./modules/ec2"
+  source = "../modules/ec2"
 
   name               = "${local.name_prefix}-web"
   subnet_id          = module.vpc.public_subnet_ids[0]
@@ -121,11 +126,14 @@ module "ec2" {
   instance_type      = local.config.instance_type
   kms_key_arn        = module.data_key.arn
 
+  # Public web tier. The module defaults this to false.
+  associate_public_ip_address = true
+
   tags = local.tags
 }
 
 module "rds" {
-  source = "./modules/rds"
+  source = "../modules/rds"
 
   name               = "${local.name_prefix}-db"
   subnet_ids         = module.vpc.private_subnet_ids

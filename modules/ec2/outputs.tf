@@ -1,6 +1,11 @@
 output "instance_id" {
-  description = "EC2 instance id."
+  description = "EC2 instance id. For a private instance: aws ssm start-session --target <id>"
   value       = aws_instance.this.id
+}
+
+output "arn" {
+  description = "Instance ARN."
+  value       = aws_instance.this.arn
 }
 
 output "public_ip" {

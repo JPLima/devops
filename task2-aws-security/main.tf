@@ -54,15 +54,27 @@ module "secrets_key" {
 # Network
 # ---------------------------------------------------------------------------
 
-module "network" {
-  source = "./modules/network"
+module "vpc" {
+  source = "../modules/vpc"
 
   name       = local.name_prefix
   cidr_block = var.vpc_cidr
   az_count   = var.az_count
 
+  # The public subnets hold the NAT gateways and nothing else, so nothing
+  # should acquire a public address here at all.
+  map_public_ip_on_launch = false
+
+  enable_flow_logs         = true
   flow_logs_kms_key_arn    = module.observability_key.arn
   flow_logs_retention_days = var.flow_logs_retention_days
+
+  # What lets a private instance be managed by SSM with no route to the
+  # internet. ssmmessages carries the session channel; without it a session
+  # opens and then hangs. The S3 gateway endpoint is free, where an interface
+  # endpoint for S3 bills per hour and per gigabyte.
+  interface_endpoints        = ["ssm", "ssmmessages", "ec2messages"]
+  enable_s3_gateway_endpoint = true
 
   tags = local.tags
 }
@@ -176,7 +188,7 @@ resource "aws_s3_bucket_policy" "data" {
 # ---------------------------------------------------------------------------
 
 module "app_secret" {
-  source = "./modules/secrets"
+  source = "../modules/secret"
 
   name        = "${local.name_prefix}/application/database"
   description = "Database credential for the ${local.name_prefix} application"
@@ -191,7 +203,7 @@ module "app_secret" {
 # ---------------------------------------------------------------------------
 
 module "iam" {
-  source = "./modules/iam"
+  source = "../modules/iam-instance-role"
 
   name            = "${local.name_prefix}-app"
   data_bucket_arn = aws_s3_bucket.data.arn
@@ -201,16 +213,52 @@ module "iam" {
   tags = local.tags
 }
 
-module "compute" {
-  source = "./modules/compute"
+# The instance's security group.
+#
+# No ingress rules at all. That is the honest answer to "only necessary ports":
+# the number of inbound ports this workload needs is zero, because
+# administration happens through Session Manager rather than SSH. A bastion on
+# port 22 would add a host to patch, a key to distribute and revoke, and an
+# audit trail in sshd logs rather than CloudTrail.
+module "app_sg" {
+  source = "../modules/security-group"
 
-  name                  = "${local.name_prefix}-app"
-  vpc_id                = module.network.vpc_id
-  vpc_cidr_block        = module.network.vpc_cidr_block
-  subnet_id             = module.network.private_subnet_ids[0]
-  instance_type         = var.instance_type
-  instance_profile_name = module.iam.instance_profile_name
-  kms_key_arn           = module.data_key.arn
+  name        = "${local.name_prefix}-app"
+  description = "Private application instance for ${local.name_prefix}"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress_rules = {}
+
+  egress_rules = {
+    # To the interface endpoints for SSM and the S3 gateway endpoint. Scoped
+    # to the VPC CIDR rather than 0.0.0.0/0, so a compromised instance cannot
+    # call out to an arbitrary address.
+    "https-to-vpc-endpoints" = {
+      description = "HTTPS to the VPC interface and gateway endpoints"
+      ip_protocol = "tcp"
+      from_port   = 443
+      to_port     = 443
+      cidr_ipv4   = module.vpc.vpc_cidr_block
+    }
+  }
+
+  tags = local.tags
+}
+
+module "compute" {
+  source = "../modules/ec2"
+
+  name               = "${local.name_prefix}-app"
+  subnet_id          = module.vpc.private_subnet_ids[0]
+  security_group_ids = [module.app_sg.id]
+  instance_type      = var.instance_type
+
+  # Left at the module default of false, but stated because this is the line a
+  # reviewer looks for.
+  associate_public_ip_address = false
+
+  iam_instance_profile = module.iam.instance_profile_name
+  kms_key_arn          = module.data_key.arn
 
   tags = local.tags
 }
@@ -220,7 +268,7 @@ module "compute" {
 # ---------------------------------------------------------------------------
 
 module "logging" {
-  source = "./modules/logging"
+  source = "../modules/cloudtrail"
 
   name               = local.name_prefix
   bucket_name        = "${local.name_prefix}-cloudtrail-${local.bucket_suffix}"
@@ -231,7 +279,7 @@ module "logging" {
 }
 
 module "config" {
-  source = "./modules/config"
+  source = "../modules/aws-config"
 
   name        = local.name_prefix
   bucket_name = "${local.name_prefix}-config-${local.bucket_suffix}"
@@ -241,7 +289,7 @@ module "config" {
 }
 
 module "alerting" {
-  source = "./modules/alerting"
+  source = "../modules/security-alerting"
 
   name                = local.name_prefix
   log_group_name      = module.logging.log_group_name

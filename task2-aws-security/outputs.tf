@@ -1,16 +1,16 @@
 output "vpc_id" {
   description = "VPC id."
-  value       = module.network.vpc_id
+  value       = module.vpc.vpc_id
 }
 
 output "private_subnet_ids" {
   description = "Private subnet ids. The instance runs here."
-  value       = module.network.private_subnet_ids
+  value       = module.vpc.private_subnet_ids
 }
 
 output "public_subnet_ids" {
   description = "Public subnet ids. They hold the NAT gateways and nothing else."
-  value       = module.network.public_subnet_ids
+  value       = module.vpc.public_subnet_ids
 }
 
 output "instance_id" {
@@ -25,7 +25,7 @@ output "instance_private_ip" {
 
 output "instance_security_group_id" {
   description = "Security group attached to the instance. It has no ingress rules."
-  value       = module.compute.security_group_id
+  value       = module.app_sg.id
 }
 
 output "instance_role_arn" {
@@ -75,7 +75,7 @@ output "security_topic_arn" {
 
 output "flow_log_group_name" {
   description = "CloudWatch log group receiving VPC flow logs."
-  value       = module.network.flow_log_group_name
+  value       = module.vpc.flow_log_group_name
 }
 
 output "application_secret_arn" {

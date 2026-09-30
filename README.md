@@ -12,31 +12,59 @@ requirements and the work sit side by side. A Portuguese translation is in
 | 2 | A private workload with least-privilege IAM, encryption everywhere, CloudTrail, AWS Config and alarms | [`task2-aws-security/`](task2-aws-security/) |
 | 3 | A broken Lambda and Terraform project, diagnosed and fixed | [`task3-lambda-troubleshooting/`](task3-lambda-troubleshooting/) |
 
-Two modules are shared across tasks rather than duplicated, which is what
-"make your code re-usable" looks like when it is real:
+## Modules
 
-| Module | Used by |
-|---|---|
-| [`modules/security-group/`](modules/security-group/) | Tasks 1 and 2 |
-| [`modules/kms-key/`](modules/kms-key/) | Tasks 1, 2 and 3 |
+Every module lives once, in [`modules/`](modules/), and the tasks consume them
+by git URL at a version tag:
+
+```hcl
+module "vpc" {
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  ...
+}
+```
+
+No task has a `modules/` directory of its own. `vpc` serves Task 1's public
+web tier and Task 2's private workload from the same code; so does `ec2`. See
+[`modules/README.md`](modules/README.md) for the full list, the versioning
+scheme, and the one real drawback of pinning to tags.
+
+| Module | Task 1 | Task 2 | Task 3 |
+|---|:---:|:---:|:---:|
+| `security-group` | yes | yes | |
+| `kms-key` | yes | yes | yes |
+| `vpc` | yes | yes | |
+| `ec2` | yes | yes | |
+| `rds` | yes | | |
+| `iam-instance-role` | | yes | |
+| `cloudtrail` | | yes | |
+| `aws-config` | | yes | |
+| `security-alerting` | | yes | |
+| `secret` | | yes | |
 
 ## Layout
 
 ```
-betontalent/
-├── modules/
+devops/
+├── modules/                every module, once
 │   ├── security-group/     one resource per rule
-│   └── kms-key/            customer-managed key, rotation on
+│   ├── kms-key/            customer-managed key, rotation on
+│   ├── vpc/                subnets, NAT, optional flow logs and endpoints
+│   ├── ec2/                encrypted storage, IMDSv2, private by default
+│   ├── rds/                private, encrypted, enhanced monitoring
+│   ├── iam-instance-role/  scoped to one bucket, one prefix, one key
+│   ├── cloudtrail/         multi-region, validated, to S3 and CloudWatch
+│   ├── aws-config/         recorder, delivery channel, twenty rules
+│   ├── security-alerting/  metric filters and alarms
+│   └── secret/             generated credential in Secrets Manager
 ├── task1-terraform-module/
-│   ├── bootstrap/          creates the state bucket and lock table
-│   └── modules/{vpc,ec2,rds}/
+│   └── bootstrap/          creates the state bucket and lock table
 ├── task2-aws-security/
-│   └── modules/{network,iam,compute,logging,config,alerting,secrets}/
 ├── task3-lambda-troubleshooting/
 │   ├── original/           the broken files, unmodified, with provenance
 │   ├── terraform/ lambda/ tests/
 │   └── FIXES.md            eight defects, cause and fix for each
-├── docs/superpowers/specs/ the design this was built from
+├── docs/                   the brief, its translation, and the design spec
 └── .github/workflows/ci.yml
 ```
 

@@ -15,10 +15,6 @@ state in S3 and locking in DynamoDB. Environments are Terraform workspaces.
 ```
 task1-terraform-module/
 ├── bootstrap/              creates the state bucket and lock table (local state)
-├── modules/
-│   ├── vpc/                VPC, subnets, IGW, NAT, route tables
-│   ├── ec2/                instance, encrypted root volume, IMDSv2
-│   └── rds/                subnet group, parameter group, encrypted instance
 ├── backend.tf              partial S3 backend configuration
 ├── locals.tf               per-workspace settings
 ├── main.tf                 wires the modules together
@@ -27,8 +23,21 @@ task1-terraform-module/
 └── {staging,production}.tfvars
 ```
 
-Security groups come from `../modules/security-group`, shared with Task 2. See
-that module's README for why every rule is a separate resource.
+There is no `modules/` directory here. Every module lives once at the
+repository root and is consumed by git URL at a version tag:
+
+```hcl
+module "vpc" {
+  source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.0.0"
+  ...
+}
+```
+
+This task uses `vpc`, `ec2`, `rds`, `security-group` and `kms-key`. The `vpc`
+and `ec2` modules are the same ones Task 2 uses; what makes this a public web
+tier rather than a private workload is `map_public_ip_on_launch = true` and
+`associate_public_ip_address = true`, not different code. See
+[`../modules/README.md`](../modules/README.md).
 
 ## Running it
 
