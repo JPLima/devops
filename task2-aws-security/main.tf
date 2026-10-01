@@ -1,16 +1,5 @@
-# Task 2 root module.
-#
-# A private workload with the security controls the challenge asks for:
-# segmented network, no inbound access, least-privilege IAM, encryption
-# everywhere, an audit trail, configuration recording, and alarms that fire on
-# the events worth waking someone for.
-
-# ---------------------------------------------------------------------------
-# Encryption keys
-#
-# Three keys rather than one. A key per purpose means the key policy stays
-# readable and revoking access to logs does not also lock out the workload.
-# ---------------------------------------------------------------------------
+# One key per purpose, so revoking access to logs does not also lock the
+# workload out of its own data.
 
 module "observability_key" {
   source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.1.0"
@@ -34,8 +23,6 @@ module "data_key" {
   alias       = "${local.name_prefix}-data"
   description = "Encrypts EBS volumes and the application data bucket"
 
-  # No service principals. EBS and S3 authorise through the caller's IAM
-  # identity, not a service principal, so the account root statement is enough.
   tags = local.tags
 }
 
@@ -50,10 +37,6 @@ module "secrets_key" {
   tags = local.tags
 }
 
-# ---------------------------------------------------------------------------
-# Network
-# ---------------------------------------------------------------------------
-
 module "vpc" {
   source = "git::https://github.com/JPLima/devops.git//modules/vpc?ref=v1.1.0"
 
@@ -61,32 +44,21 @@ module "vpc" {
   cidr_block = var.vpc_cidr
   az_count   = var.az_count
 
-  # The public subnets hold the NAT gateways and nothing else, so nothing
-  # should acquire a public address here at all.
+  # The public subnets hold the NAT gateways and nothing else.
   map_public_ip_on_launch = false
 
   enable_flow_logs         = true
   flow_logs_kms_key_arn    = module.observability_key.arn
   flow_logs_retention_days = var.flow_logs_retention_days
 
-  # What lets a private instance be managed by SSM with no route to the
-  # internet. ssmmessages carries the session channel; without it a session
-  # opens and then hangs. The S3 gateway endpoint is free, where an interface
-  # endpoint for S3 bills per hour and per gigabyte.
+  # Lets SSM reach the private instance with no route to the internet.
   interface_endpoints        = ["ssm", "ssmmessages", "ec2messages"]
   enable_s3_gateway_endpoint = true
 
   tags = local.tags
 }
 
-# ---------------------------------------------------------------------------
-# Application data bucket
-#
-# The one bucket the instance role can touch. Everything the challenge asks
-# for on storage encryption is here: SSE-KMS with a customer-managed key,
-# versioning, public access blocked, ACLs disabled, and TLS enforced.
-# ---------------------------------------------------------------------------
-
+# The one bucket the instance role can touch.
 resource "aws_s3_bucket" "data" {
   bucket = "${local.name_prefix}-data-${local.bucket_suffix}"
 
@@ -154,8 +126,7 @@ data "aws_iam_policy_document" "data_bucket" {
     }
   }
 
-  # Encryption at rest is configured by default on the bucket, but a client can
-  # still ask for a different algorithm. This refuses anything but our key.
+  # The bucket default does not stop a client asking for another algorithm.
   statement {
     sid    = "DenyWrongEncryption"
     effect = "Deny"
@@ -183,10 +154,6 @@ resource "aws_s3_bucket_policy" "data" {
   depends_on = [aws_s3_bucket_public_access_block.data]
 }
 
-# ---------------------------------------------------------------------------
-# Credentials
-# ---------------------------------------------------------------------------
-
 module "app_secret" {
   source = "git::https://github.com/JPLima/devops.git//modules/secret?ref=v1.1.0"
 
@@ -197,10 +164,6 @@ module "app_secret" {
 
   tags = local.tags
 }
-
-# ---------------------------------------------------------------------------
-# Identity and compute
-# ---------------------------------------------------------------------------
 
 module "iam" {
   source = "git::https://github.com/JPLima/devops.git//modules/iam-instance-role?ref=v1.1.0"
@@ -213,13 +176,7 @@ module "iam" {
   tags = local.tags
 }
 
-# The instance's security group.
-#
-# No ingress rules at all. That is the honest answer to "only necessary ports":
-# the number of inbound ports this workload needs is zero, because
-# administration happens through Session Manager rather than SSH. A bastion on
-# port 22 would add a host to patch, a key to distribute and revoke, and an
-# audit trail in sshd logs rather than CloudTrail.
+# No ingress at all: administration is Session Manager, not SSH.
 module "app_sg" {
   source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.1.0"
 
@@ -230,9 +187,8 @@ module "app_sg" {
   ingress_rules = {}
 
   egress_rules = {
-    # To the interface endpoints for SSM and the S3 gateway endpoint. Scoped
-    # to the VPC CIDR rather than 0.0.0.0/0, so a compromised instance cannot
-    # call out to an arbitrary address.
+    # Scoped to the VPC rather than 0.0.0.0/0, so a compromised instance
+    # cannot call out to an arbitrary address.
     "https-to-vpc-endpoints" = {
       description = "HTTPS to the VPC interface and gateway endpoints"
       ip_protocol = "tcp"
@@ -253,8 +209,6 @@ module "compute" {
   security_group_ids = [module.app_sg.id]
   instance_type      = var.instance_type
 
-  # Left at the module default of false, but stated because this is the line a
-  # reviewer looks for.
   associate_public_ip_address = false
 
   iam_instance_profile = module.iam.instance_profile_name
@@ -262,10 +216,6 @@ module "compute" {
 
   tags = local.tags
 }
-
-# ---------------------------------------------------------------------------
-# Audit and detection
-# ---------------------------------------------------------------------------
 
 module "logging" {
   source = "git::https://github.com/JPLima/devops.git//modules/cloudtrail?ref=v1.1.0"

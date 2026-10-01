@@ -1,13 +1,9 @@
-# Remote state storage and locking.
-#
-# Run this once, with local state, before the root configuration one directory
-# up. The backend cannot create the bucket it stores state in.
+# Run once, with local state, before the configuration one directory up. The
+# backend cannot create the bucket it stores state in.
 
 resource "aws_s3_bucket" "state" {
   bucket = var.state_bucket_name
 
-  # State is the source of truth for every environment. Losing it is worse
-  # than any accidental apply, so deletion must be a deliberate act.
   lifecycle {
     prevent_destroy = true
   }
@@ -42,8 +38,6 @@ resource "aws_s3_bucket_public_access_block" "state" {
   restrict_public_buckets = true
 }
 
-# Refuse any request that is not over TLS. Encryption at rest is not enough on
-# its own; this closes the transport side.
 resource "aws_s3_bucket_policy" "state" {
   bucket = aws_s3_bucket.state.id
   policy = data.aws_iam_policy_document.state_bucket.json
@@ -74,11 +68,8 @@ data "aws_iam_policy_document" "state_bucket" {
   }
 }
 
-# Customer-managed key rather than the AWS-managed S3 key, so key rotation and
-# key policy are ours to audit.
-#
-# The same module the rest of the repository uses. S3 and DynamoDB authorise
-# through the caller's IAM identity, so no service grant is needed.
+# S3 and DynamoDB authorise through the caller's IAM identity, so the key
+# needs no service grant.
 module "state_key" {
   source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.1.0"
 
@@ -91,8 +82,7 @@ module "state_key" {
   }
 }
 
-# State locking. One item per state file, keyed by LockID, which is the schema
-# the S3 backend expects.
+# LockID is the schema the S3 backend expects.
 resource "aws_dynamodb_table" "locks" {
   name         = var.lock_table_name
   billing_mode = "PAY_PER_REQUEST"

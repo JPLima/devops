@@ -1,16 +1,5 @@
-# AWS Config: a continuous record of how every resource is configured, and
-# rules that evaluate that record.
-#
-# CloudTrail answers "who changed this". Config answers "what does it look like
-# right now, and is that acceptable". They are different questions, which is
-# why both are here.
-
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
-
-# ---------------------------------------------------------------------------
-# Delivery bucket
-# ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "config" {
   bucket = var.bucket_name
@@ -64,8 +53,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "config" {
 
     filter {}
 
-    # An interrupted upload leaves parts that are billed but invisible in the
-    # object listing. Without this they accumulate forever.
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
@@ -150,10 +137,6 @@ resource "aws_s3_bucket_policy" "config" {
   policy = data.aws_iam_policy_document.config_bucket.json
 }
 
-# ---------------------------------------------------------------------------
-# Recorder
-# ---------------------------------------------------------------------------
-
 data "aws_iam_policy_document" "assume" {
   statement {
     effect  = "Allow"
@@ -179,9 +162,8 @@ resource "aws_iam_role" "config" {
   tags = merge(var.tags, { Name = "${var.name}-config" })
 }
 
-# The service-linked policy. Config needs read access to every resource type it
-# records, which is not something worth hand-writing: the list changes whenever
-# AWS adds a service.
+# Config needs read access to every resource type it records, and that list
+# changes whenever AWS adds a service.
 resource "aws_iam_role_policy_attachment" "config" {
   role       = aws_iam_role.config.name
   policy_arn = "arn:${data.aws_partition.current.partition}:iam::aws:policy/service-role/AWS_ConfigRole"
@@ -223,8 +205,6 @@ resource "aws_config_configuration_recorder" "this" {
   role_arn = aws_iam_role.config.arn
 
   recording_group {
-    # Everything, including global resources such as IAM. Recording a subset is
-    # how a resource type becomes invisible the day it matters.
     all_supported                 = true
     include_global_resource_types = true
   }
@@ -245,8 +225,8 @@ resource "aws_config_delivery_channel" "this" {
   ]
 }
 
-# Creating a recorder does not start it. Without this resource, Config records
-# nothing and every rule reports NOT_APPLICABLE.
+# Creating a recorder does not start it. Without this, Config records nothing
+# and every rule reports NOT_APPLICABLE.
 resource "aws_config_configuration_recorder_status" "this" {
   name       = aws_config_configuration_recorder.this.name
   is_enabled = true
@@ -254,17 +234,9 @@ resource "aws_config_configuration_recorder_status" "this" {
   depends_on = [aws_config_delivery_channel.this]
 }
 
-# ---------------------------------------------------------------------------
-# Rules
-# ---------------------------------------------------------------------------
-
 locals {
-  # AWS managed rules, keyed by name. Adding a check is one map entry.
-  #
-  # The root account cannot be disabled through any API, so Terraform cannot
-  # do it. What it can do is detect misuse: the first two rules below, plus the
-  # root-account-usage alarm in the alerting module. That is the codifiable
-  # part of "disable the root user".
+  # The root account cannot be disabled through any API. The first two rules
+  # plus the root-account-usage alarm are the part that is codifiable.
   rules = {
     "root-account-mfa-enabled"     = "ROOT_ACCOUNT_MFA_ENABLED"
     "root-access-key-check"        = "IAM_ROOT_ACCESS_KEY_CHECK"
@@ -301,6 +273,5 @@ resource "aws_config_config_rule" "managed" {
 
   tags = merge(var.tags, { Name = "${var.name}-${each.key}" })
 
-  # A rule created before the recorder is running is rejected by the API.
   depends_on = [aws_config_configuration_recorder_status.this]
 }

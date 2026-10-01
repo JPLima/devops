@@ -1,14 +1,3 @@
-# An EC2 instance with the defaults AWS does not give you: encrypted storage,
-# IMDSv2 required, no public address unless asked for, and an AMI resolved at
-# plan time instead of hardcoded.
-#
-# One module serves both a public web tier and a private instance reached
-# through SSM. The difference is associate_public_ip_address and which subnet
-# it lands in, not a second copy of this file.
-
-# Hardcoding an AMI id pins the instance to one region and one patch level.
-# Filtering by owner and name pattern keeps the configuration portable, and
-# the owner filter is what stops a lookalike AMI from matching.
 data "aws_ami" "amazon_linux" {
   count = var.ami_id == null ? 1 : 0
 
@@ -31,7 +20,7 @@ locals {
 }
 
 resource "aws_instance" "this" {
-  #checkov:skip=CKV_AWS_88: The caller decides, and it defaults to false. A public web tier opts in explicitly; the private design leaves it off and reaches the instance through SSM.
+  #checkov:skip=CKV_AWS_88: caller decides, defaults to false
   ami           = local.ami_id
   instance_type = var.instance_type
 
@@ -51,10 +40,6 @@ resource "aws_instance" "this" {
     tags = merge(var.tags, { Name = "${var.name}-root" })
   }
 
-  # IMDSv2 only, and a hop limit of 1. Version 1 answers an unauthenticated
-  # GET, which is how a server-side request forgery bug in an application turns
-  # into leaked role credentials. The hop limit stops a container on the host
-  # from reaching the metadata service through the bridge.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
@@ -62,20 +47,14 @@ resource "aws_instance" "this" {
     instance_metadata_tags      = "enabled"
   }
 
-  # Dedicated bandwidth to EBS instead of sharing the network interface.
   ebs_optimized = true
-
-  monitoring = var.detailed_monitoring
-
-  # No key_name. Access is SSM Session Manager, so there is no key pair to
-  # distribute, rotate or leak, and every session is a CloudTrail event.
+  monitoring    = var.detailed_monitoring
 
   tags = merge(var.tags, { Name = var.name })
 
   lifecycle {
-    # The AMI data source returns a newer id whenever Amazon publishes one.
-    # Without this, an unrelated apply would replace a running instance.
-    # Replace deliberately by tainting or by setting ami_id.
+    # The AMI lookup returns a new id whenever Amazon publishes one, which
+    # would otherwise replace a running instance on an unrelated apply.
     ignore_changes = [ami]
   }
 }

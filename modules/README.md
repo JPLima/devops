@@ -44,10 +44,9 @@ A git tag is a mutable pointer. Anyone with write access can move `v1.0.0` to
 a different commit, and every later `terraform init` then pulls different code
 under the same ref, with nothing changing in any root configuration to show it.
 
-Checkov's `CKV_TF_1` flags exactly this and would rather see a commit SHA. We
-use tags anyway, because a version is something a human reads in a diff:
-"v1.0.0 to v1.1.0" says what happened, where "4840a3b to 9c2f1de" says nothing,
-so nobody reads it and the upgrade stops being reviewed.
+Checkov's `CKV_TF_1` flags this and would rather see a commit SHA. We use tags
+anyway, because "v1.0.0 to v1.1.0" is readable in a diff where
+"4840a3b to 9c2f1de" is not.
 
 That trade is only sound if the tags cannot move, which is a repository
 setting rather than a Terraform one. Add a tag protection rule for `v*` under
@@ -67,12 +66,10 @@ and push it.** Edit `modules/vpc`, run `terraform plan` in
 same property: a pull request that changes a module still validates the root
 configurations against the last tag.
 
-That is the point. A root configuration pinned to `v1.0.0` keeps working
-exactly as it did the day it was pinned, whatever happens on `main`. The cost
-is a release step. The usual way to make that cost feel smaller is to move the
-modules into a repository of their own, with its own tags and its own CI, so
-"release a module" and "change an environment" stop sharing a commit history.
-They are together here because the challenge is one deliverable.
+In exchange, a root pinned to `v1.0.0` keeps working as it did the day it was
+pinned, whatever happens on `main`. The usual way to make the release step
+cheaper is a separate modules repository with its own tags and CI. They are
+together here because the challenge is one deliverable.
 
 To iterate on a module without tagging, point the source at the working tree
 temporarily:
@@ -120,14 +117,11 @@ that save someone an afternoon. Start there rather than in the `.tf` files.
 | [`security-alerting`](security-alerting/) | | yes | |
 | [`secret`](secret/) | | yes | |
 
-Two rows are worth pausing on.
-
 `vpc` serves Task 1's internet-facing web tier and Task 2's fully private
 workload from the same code. Task 1 sets `map_public_ip_on_launch = true` and
 leaves flow logs and endpoints off. Task 2 leaves public addressing off and
 turns on flow logs, three interface endpoints and the S3 gateway endpoint.
-Before consolidation these were two modules, `vpc` and `network`, that shared
-roughly eighty percent of their contents and had already started to drift.
+Before consolidation these were two modules that had already started to drift.
 
 `ec2` is the same story. Task 1's instance is public with a security group
 allowing HTTPS from named networks; Task 2's is private with a security group

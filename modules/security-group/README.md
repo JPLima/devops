@@ -100,13 +100,11 @@ Result:
 > module.web_sg.aws_vpc_security_group_ingress_rule.this["https-from-office-porto"]
 ```
 
-One line added. Nothing changed, nothing removed. Every address that already
-existed is byte-for-byte identical.
+One line added, nothing changed, nothing removed. The addresses that already
+existed are identical.
 
-That last sentence is the whole point, and it is what `count` over a list
-cannot give you: there, inserting or removing an entry renumbers every index
-after it, so the addresses themselves move and Terraform destroys and recreates
-rules that nobody touched.
+With `count` over a list, inserting or removing an entry renumbers every index
+after it, so the addresses move and Terraform recreates rules nobody touched.
 
 ## Referencing another security group
 
@@ -156,13 +154,12 @@ ports on a rule whose protocol is not `-1`.
 
 ## Notes
 
-Rule keys are part of the resource address. Renaming a key destroys the old
-rule and creates a new one, which is correct but worth knowing. Use
-`terraform state mv` if you want to rename without the churn.
+Rule keys are part of the resource address, so renaming a key destroys and
+recreates that rule. Use `terraform state mv` to rename without the churn.
 
-The group uses `name_prefix` with `create_before_destroy`, so a change that
-forces replacement creates the new group before detaching the old one.
+`name_prefix` plus `create_before_destroy` means a replacement creates the new
+group before detaching the old one.
 
-AWS attaches an allow-all egress rule to every new security group. This module
-does not manage that rule, so declare the egress you want in `egress_rules`
-and handle the default according to your account's baseline.
+AWS attaches an allow-all egress rule to every new group. This module does not
+manage it, so declare what you want in `egress_rules` and handle the default
+separately.

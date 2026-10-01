@@ -1,13 +1,3 @@
-# boto3 ships in the Lambda Python runtime, so it is NOT packaged into the
-# deployment zip. Pinning it here and bundling it would mean shipping ~15 MB
-# to shadow a library the runtime already provides, and the bundled version
-# would then age while the runtime's is patched.
-#
-# This file is for local development and for running the tests:
-#
-#   python -m venv .venv && . .venv/bin/activate
-#   pip install -r lambda/requirements.txt -r tests/requirements.txt
-#
-# The version tracks what the python3.12 runtime currently ships, so local
-# behaviour matches deployed behaviour.
+# boto3 ships in the Lambda runtime and is not packaged into the zip. This is
+# for local development and the tests.
 boto3>=1.34.0

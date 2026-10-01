@@ -67,19 +67,17 @@ Plus one managed policy: `AmazonSSMManagedInstanceCore`.
 
 ## Notes
 
-**The KMS statement is the one people forget.** Without it, every `GetObject`
-and `PutObject` against an encrypted bucket returns `AccessDenied`, and the
-error names S3 rather than KMS. That is a reliable afternoon lost.
+**The KMS statement is easy to forget.** Without it, `GetObject` and
+`PutObject` against an encrypted bucket return `AccessDenied`, and the error
+names S3 rather than KMS.
 
 **`ListBucket` needs the bucket ARN without a key suffix.** It is a
 bucket-level action, so the `s3:prefix` condition is what keeps the listing
 narrow rather than the resource ARN.
 
-**`AmazonSSMManagedInstanceCore` is the one managed policy here, deliberately.**
-It is the documented contract for Session Manager. Hand-writing it would drift
-from AWS as the agent changes, which is exactly the case where a managed policy
-is the right answer. Everything else is written out.
+**`AmazonSSMManagedInstanceCore` is the one managed policy.** It is the
+documented contract for Session Manager and changes as the agent does.
+Everything else is written out.
 
-**`max_session_duration` is one hour, not the twelve-hour maximum.** Instance
-credentials are rotated by the metadata service anyway; a shorter ceiling
-limits how long a leaked set stays usable.
+**`max_session_duration` is one hour.** The metadata service rotates instance
+credentials anyway, and a shorter ceiling limits how long a leaked set works.

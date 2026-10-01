@@ -14,7 +14,7 @@ variable "cidr_block" {
 }
 
 variable "az_count" {
-  description = "Number of availability zones to spread subnets across."
+  description = "Availability zones to spread subnets across."
   type        = number
   default     = 2
 
@@ -25,20 +25,13 @@ variable "az_count" {
 }
 
 variable "subnet_newbits" {
-  description = <<-EOT
-    Bits added to the VPC prefix length to size each subnet. With a /16 VPC,
-    8 gives /24 subnets. Must leave room for 2 * az_count subnets.
-  EOT
+  description = "Bits added to the VPC prefix to size each subnet. With a /16, 8 gives /24s."
   type        = number
   default     = 8
 }
 
 variable "map_public_ip_on_launch" {
-  description = <<-EOT
-    Whether instances launched in the public subnets get a public IP without
-    asking. False by default: a public address should be a decision, not a
-    default. Set true for a public web tier.
-  EOT
+  description = "Whether public subnets hand out public IPs. Set true for an internet-facing tier."
   type        = bool
   default     = false
 }
@@ -50,11 +43,7 @@ variable "enable_nat_gateway" {
 }
 
 variable "single_nat_gateway" {
-  description = <<-EOT
-    Route every private subnet through one NAT gateway instead of one per AZ.
-    Cheaper, but the NAT becomes a single point of failure and a zone outage
-    takes egress with it. Suitable for non-production environments.
-  EOT
+  description = "One shared NAT instead of one per AZ. Cheaper, but a single point of failure."
   type        = bool
   default     = false
 }
@@ -79,21 +68,13 @@ variable "flow_logs_kms_key_arn" {
 }
 
 variable "flow_logs_retention_days" {
-  description = <<-EOT
-    Retention for the flow log group. One year by default, the floor most
-    compliance regimes expect. Flow logs are voluminous, so this is the first
-    dial to turn if the CloudWatch bill matters more than the lookback window.
-  EOT
+  description = "Retention for the flow log group."
   type        = number
   default     = 365
 }
 
 variable "flow_logs_traffic_type" {
-  description = <<-EOT
-    ACCEPT, REJECT or ALL. ALL by default: accepted traffic is what tells you
-    what an intruder reached, where rejects only tell you what they failed to
-    reach.
-  EOT
+  description = "ACCEPT, REJECT or ALL."
   type        = string
   default     = "ALL"
 
@@ -109,24 +90,15 @@ variable "flow_logs_traffic_type" {
 
 variable "interface_endpoints" {
   description = <<-EOT
-    Interface endpoint service names, without the com.amazonaws.<region>.
-    prefix. ["ssm", "ssmmessages", "ec2messages"] is what Session Manager
-    needs to reach a private instance without a route to the internet;
-    ssmmessages carries the session channel, and without it a session opens
-    and then hangs.
-
-    Empty means no interface endpoints.
+    Interface endpoint service names without the com.amazonaws.<region>.
+    prefix. Session Manager needs ["ssm", "ssmmessages", "ec2messages"].
   EOT
   type        = set(string)
   default     = []
 }
 
 variable "enable_s3_gateway_endpoint" {
-  description = <<-EOT
-    Attach an S3 gateway endpoint to the private route tables. Gateway
-    endpoints are free, where an interface endpoint for S3 bills per hour and
-    per gigabyte.
-  EOT
+  description = "Attach an S3 gateway endpoint to the private route tables."
   type        = bool
   default     = false
 }

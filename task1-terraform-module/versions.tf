@@ -12,8 +12,6 @@ terraform {
 provider "aws" {
   region = var.region
 
-  # Tagged once here instead of repeated in every module. Every resource that
-  # supports tags picks these up automatically.
   default_tags {
     tags = {
       Project     = var.project

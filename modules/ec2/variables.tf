@@ -9,12 +9,7 @@ variable "subnet_id" {
 }
 
 variable "security_group_ids" {
-  description = <<-EOT
-    Security groups to attach. Build them with the security-group module and
-    pass the ids in; this module does not create them, so one instance can
-    share a group with another and the group's lifecycle is not tied to the
-    instance's.
-  EOT
+  description = "Security groups to attach. Build them with the security-group module."
   type        = list(string)
 }
 
@@ -25,20 +20,13 @@ variable "instance_type" {
 }
 
 variable "ami_id" {
-  description = <<-EOT
-    AMI to launch. Null resolves the latest Amazon Linux 2023 image through a
-    data source, which keeps the module portable across regions.
-  EOT
+  description = "AMI to launch. Null resolves the latest Amazon Linux 2023 image."
   type        = string
   default     = null
 }
 
 variable "associate_public_ip_address" {
-  description = <<-EOT
-    Give the instance a public IP. False by default: reachable from the
-    internet should be a decision, not an inherited default. Only meaningful
-    in a public subnet.
-  EOT
+  description = "Give the instance a public IP. Only meaningful in a public subnet."
   type        = bool
   default     = false
 }
@@ -50,11 +38,7 @@ variable "root_volume_size" {
 }
 
 variable "kms_key_arn" {
-  description = <<-EOT
-    Customer-managed key for the root volume. Null uses the AWS-managed EBS
-    key; the volume is encrypted either way, but an AWS-managed key's policy
-    and rotation cannot be audited.
-  EOT
+  description = "Customer-managed key for the root volume. Null uses the AWS-managed EBS key."
   type        = string
   default     = null
 }

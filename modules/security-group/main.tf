@@ -1,26 +1,10 @@
-# A security group whose rules are each a separate resource.
-#
-# Why not inline ingress/egress blocks: they live as one attribute of one
-# resource, so editing any CIDR rewrites the whole set and the plan churns
-# rules that did not change.
-#
-# Why not count over a list: removing the second of four entries shifts the
-# indices of the remaining three, so Terraform destroys and recreates three
-# rules to remove one.
-#
-# for_each over a map keyed by name gives every rule a stable address. Adding
-# or removing a CIDR produces a plan with exactly one create or one destroy.
-
 resource "aws_security_group" "this" {
-  # name_prefix, not name: a rename would otherwise deadlock against a group
-  # still attached to an ENI.
   name_prefix = "${var.name}-"
   description = var.description
   vpc_id      = var.vpc_id
 
-  # No ingress or egress blocks here on purpose. Mixing them with the
-  # standalone rule resources below makes the two fight on every plan, each
-  # reverting the other.
+  # No inline ingress/egress. They conflict with the standalone rule
+  # resources below and the two revert each other on every apply.
 
   tags = merge(var.tags, { Name = var.name })
 
@@ -45,8 +29,7 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   prefix_list_id               = each.value.prefix_list_id
   referenced_security_group_id = each.value.referenced_security_group_id
 
-  # The console lists these rules by their sgr- id only. The tag is what makes
-  # a rule recognisable there.
+  # The console only shows the sgr- id without this.
   tags = merge(var.tags, { Name = each.key })
 }
 

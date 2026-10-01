@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Base name for the security group. Used as a name_prefix, so the group gets a unique suffix."
+  description = "Base name. Used as a name_prefix, so the group gets a unique suffix."
   type        = string
 
   validation {
@@ -9,7 +9,7 @@ variable "name" {
 }
 
 variable "description" {
-  description = "Description of the security group. AWS does not allow this to be changed after creation."
+  description = "Group description. AWS will not let this change after creation."
   type        = string
 }
 
@@ -20,14 +20,10 @@ variable "vpc_id" {
 
 variable "ingress_rules" {
   description = <<-EOT
-    Inbound rules, keyed by a stable human-readable name such as
-    "https-from-office-lisbon". The key becomes the Terraform resource address,
-    so adding or removing an entry only ever touches that one rule.
-
-    Each rule must set exactly one source: cidr_ipv4, cidr_ipv6,
-    prefix_list_id or referenced_security_group_id. That is an AWS constraint
-    on aws_vpc_security_group_ingress_rule, and it is what makes one rule per
-    resource possible.
+    Inbound rules keyed by name, e.g. "https-from-office-lisbon". The key is
+    the Terraform address, so adding or removing an entry touches only that
+    rule. Each rule sets exactly one of cidr_ipv4, cidr_ipv6, prefix_list_id
+    or referenced_security_group_id.
   EOT
 
   type = map(object({
@@ -69,12 +65,9 @@ variable "ingress_rules" {
 
 variable "egress_rules" {
   description = <<-EOT
-    Outbound rules, keyed the same way as ingress_rules.
-
-    AWS attaches an allow-all egress rule to every new security group. This
-    module does not manage that rule, so define the egress you actually want
-    here and remove the default out of band if your account does not already
-    do so.
+    Outbound rules, keyed like ingress_rules. AWS attaches an allow-all egress
+    rule to every new group and this module does not manage it, so declare
+    what you want here and handle the default separately.
   EOT
 
   type = map(object({

@@ -65,14 +65,12 @@ it, so nothing that already exists is touched.
 
 ## Notes
 
-**Every metric transformation sets `default_value = 0`.** Without it the metric
-has no datapoint when nothing matches, and the alarm sits in
-`INSUFFICIENT_DATA` rather than `OK`. An alarm you cannot tell apart from a
-broken alarm is not monitoring.
+**Every metric transformation sets `default_value = 0`.** Without it the
+metric has no datapoint when nothing matches, and the alarm sits in
+`INSUFFICIENT_DATA` rather than `OK`.
 
-**`cloudtrail-config-changes` is the one that matters most.** Stopping the
-trail is what covering tracks looks like, and it is the alarm an attacker would
-disable first. Consider forwarding this topic somewhere outside the account.
+**Forward this topic outside the account.** `cloudtrail-config-changes` is the
+alarm an attacker would disable first.
 
 **`security-group-changes` will page on your own applies.** That is intentional:
 a rule changed outside Terraform and a rule changed by Terraform look identical

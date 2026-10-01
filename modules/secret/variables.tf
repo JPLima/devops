@@ -25,7 +25,7 @@ variable "password_length" {
 }
 
 variable "recovery_window_in_days" {
-  description = "Days a deleted secret can be restored. Zero deletes immediately, which is rarely what you want."
+  description = "Days a deleted secret can be restored. Zero deletes immediately."
   type        = number
   default     = 30
 }

@@ -29,10 +29,7 @@ variable "instance_type" {
 }
 
 variable "security_notification_emails" {
-  description = <<-EOT
-    Addresses that receive security alarms. Each subscription stays pending
-    until the recipient confirms by email; Terraform cannot confirm for them.
-  EOT
+  description = "Addresses that receive security alarms. Each recipient confirms by email."
   type        = list(string)
   default     = []
 }

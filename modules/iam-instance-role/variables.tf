@@ -9,16 +9,13 @@ variable "data_bucket_arn" {
 }
 
 variable "data_bucket_prefix" {
-  description = <<-EOT
-    Key prefix inside the bucket the instance may touch. The default of "*"
-    means the whole bucket; narrow it when the workload only owns part of one.
-  EOT
+  description = "Key prefix inside the bucket the instance may touch."
   type        = string
   default     = "*"
 }
 
 variable "kms_key_arn" {
-  description = "ARN of the key encrypting the bucket. Without kms: permissions, s3: permissions alone fail on an encrypted object."
+  description = "Key encrypting the bucket. s3 permissions alone fail on an encrypted object."
   type        = string
 }
 

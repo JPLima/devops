@@ -298,8 +298,8 @@ both were valid when written and were removed in v5.
 
 **Fix.** A `versions.tf` pinning Terraform and all three providers.
 
-**On the constraint.** The challenge says *you cannot change the Terraform
-provider settings*. The `provider "aws"` block is untouched:
+**On the constraint.** The challenge forbids changing the provider settings.
+The `provider "aws"` block is untouched:
 
 ```hcl
 provider "aws" {
@@ -307,11 +307,9 @@ provider "aws" {
 }
 ```
 
-Same provider, same region, byte for byte. `versions.tf` adds version
-constraints that were absent. That is the difference between reproducing a
-build and hoping. If a reviewer reads the constraint as forbidding this too,
-defect 2 would instead be fixed by matching whatever provider the grader
-happens to resolve, which is not a fix, it is a coincidence.
+Same provider, same region. `versions.tf` adds the version constraints that
+were absent. Reading the constraint as forbidding that too would leave defect 2
+fixable only by matching whatever provider the grader happens to resolve.
 
 ---
 

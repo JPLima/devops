@@ -34,7 +34,7 @@ output "ec2_private_dns" {
 }
 
 output "rds_endpoint" {
-  description = "Database endpoint, host and port. Not sensitive: it is a hostname, and it is unreachable outside the VPC."
+  description = "Database endpoint, host and port."
   value       = module.rds.endpoint
 }
 
@@ -54,7 +54,7 @@ output "web_security_group_id" {
 }
 
 output "web_ingress_rule_ids" {
-  description = "Map of web tier rule name to AWS rule id, one entry per allow-listed network."
+  description = "Map of rule name to AWS rule id."
   value       = module.web_sg.ingress_rule_ids
 }
 

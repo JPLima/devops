@@ -1,24 +1,8 @@
-# A VPC with public and private subnets across several availability zones.
-#
-# One module serves both a public web tier and a fully private workload. What
-# separates the two is configuration, not a second copy of this file:
-#
-#   public tier     map_public_ip_on_launch = true
-#   private tier    interface_endpoints = ["ssm", "ssmmessages", "ec2messages"]
-#                   enable_s3_gateway_endpoint = true
-#                   enable_flow_logs = true
-#
-# Subnet CIDRs are derived from the VPC CIDR with cidrsubnet rather than passed
-# in as a list. One variable changes the whole address plan, and the module
-# works for any VPC size without the caller recalculating anything.
-
 data "aws_availability_zones" "available" {
-  #checkov:skip=CKV_AWS_394: Pinning zone ids would tie the module to one region. The opt-in filter below excludes Local Zones and Wavelength zones, which is the result-set expansion that actually matters, and slice() bounds the count.
+  #checkov:skip=CKV_AWS_394: pinning zone ids would tie the module to one region
   state = "available"
 
-  # Standard zones only. Without this, a Local Zone or Wavelength zone can
-  # appear in the list and a subnet lands somewhere that does not support the
-  # services the workload needs.
+  # Excludes Local Zones and Wavelength, which do not support every service.
   filter {
     name   = "opt-in-status"
     values = ["opt-in-not-required"]
@@ -28,12 +12,10 @@ data "aws_availability_zones" "available" {
 data "aws_region" "current" {}
 
 locals {
-  # Take the first az_count zones that are actually available in the region,
-  # rather than assuming a, b and c exist.
   azs = slice(data.aws_availability_zones.available.names, 0, var.az_count)
 
-  # Public subnets take the low half of the address plan, private the high
-  # half, so adding an AZ never renumbers an existing subnet.
+  # Public takes the low half of the address plan and private the high half,
+  # so adding an AZ never renumbers an existing subnet.
   public_subnet_cidrs = [
     for index in range(var.az_count) :
     cidrsubnet(var.cidr_block, var.subnet_newbits, index)
@@ -63,9 +45,8 @@ resource "aws_internet_gateway" "this" {
   tags = merge(var.tags, { Name = "${var.name}-igw" })
 }
 
-# Subnets are keyed by availability zone name rather than by index. Removing a
-# zone from the middle of the list then destroys only that subnet, instead of
-# shifting every index after it.
+# Keyed by AZ name, not index, so removing a zone destroys one subnet instead
+# of shifting every index after it.
 resource "aws_subnet" "public" {
   for_each = { for index, az in local.azs : az => index }
 
@@ -73,7 +54,7 @@ resource "aws_subnet" "public" {
   availability_zone = each.key
   cidr_block        = local.public_subnet_cidrs[each.value]
 
-  #checkov:skip=CKV_AWS_130: The caller decides. It defaults to false; a public web tier opts in explicitly.
+  #checkov:skip=CKV_AWS_130: caller decides, defaults to false
   map_public_ip_on_launch = var.map_public_ip_on_launch
 
   tags = merge(var.tags, {
@@ -137,8 +118,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# One route table per private subnet, so each can point at the NAT gateway in
-# its own zone. With single_nat_gateway they all point at the same one.
+# One per private subnet so each points at the NAT in its own zone.
 resource "aws_route_table" "private" {
   for_each = aws_subnet.private
 
@@ -163,10 +143,6 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private[each.key].id
 }
 
-# ---------------------------------------------------------------------------
-# Flow logs
-# ---------------------------------------------------------------------------
-
 resource "aws_cloudwatch_log_group" "flow_logs" {
   count = var.enable_flow_logs ? 1 : 0
 
@@ -179,7 +155,7 @@ resource "aws_cloudwatch_log_group" "flow_logs" {
   lifecycle {
     precondition {
       condition     = var.flow_logs_kms_key_arn != null
-      error_message = "flow_logs_kms_key_arn is required when enable_flow_logs is true. Flow logs carry source and destination addresses for every connection in the VPC."
+      error_message = "flow_logs_kms_key_arn is required when enable_flow_logs is true."
     }
   }
 }
@@ -210,7 +186,6 @@ data "aws_iam_policy_document" "flow_logs" {
       "logs:DescribeLogStreams",
     ]
 
-    # Scoped to this log group and its streams, not logs:* on *.
     resources = [
       aws_cloudwatch_log_group.flow_logs[0].arn,
       "${aws_cloudwatch_log_group.flow_logs[0].arn}:*",
@@ -250,18 +225,8 @@ resource "aws_flow_log" "this" {
   tags = merge(var.tags, { Name = "${var.name}-flow-logs" })
 }
 
-# ---------------------------------------------------------------------------
-# VPC endpoints
-#
-# These are what let a private instance be managed by SSM without a route to
-# the internet. Without them the instance would need the NAT gateway just to
-# reach the SSM control plane.
-# ---------------------------------------------------------------------------
-
-# Relative source on purpose. When this module is fetched from a git tag,
-# Terraform resolves a relative source inside the same fetched copy, so the
-# security-group module comes from the same version as this one. A git URL
-# here would let the two drift apart.
+# Relative source so a git-fetched copy of this module uses the
+# security-group module at its own version.
 module "endpoints_sg" {
   source = "../security-group"
 

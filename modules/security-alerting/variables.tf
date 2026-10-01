@@ -14,10 +14,7 @@ variable "kms_key_arn" {
 }
 
 variable "notification_emails" {
-  description = <<-EOT
-    Addresses subscribed to the alarm topic. Each subscription starts as
-    pending until the recipient confirms; Terraform cannot confirm for them.
-  EOT
+  description = "Addresses subscribed to the topic. Each recipient has to confirm by email."
   type        = list(string)
   default     = []
 }

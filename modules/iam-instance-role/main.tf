@@ -1,11 +1,3 @@
-# The instance role, written as least privilege rather than assembled from
-# managed policies.
-#
-# The one managed policy here is AmazonSSMManagedInstanceCore, which is the
-# documented contract for Session Manager. Rewriting it by hand would drift
-# from AWS as the agent changes, which is the case where a managed policy is
-# the right answer.
-
 data "aws_iam_policy_document" "assume" {
   statement {
     effect  = "Allow"
@@ -22,9 +14,6 @@ resource "aws_iam_role" "instance" {
   name_prefix        = "${var.name}-"
   assume_role_policy = data.aws_iam_policy_document.assume.json
 
-  # One hour rather than the twelve-hour maximum. Instance credentials are
-  # rotated by the metadata service anyway; a shorter ceiling limits how long
-  # a leaked set stays usable.
   max_session_duration = 3600
 
   tags = merge(var.tags, { Name = var.name })
@@ -36,7 +25,6 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 }
 
 data "aws_iam_policy_document" "workload" {
-  # Object access, scoped to one prefix of one bucket.
   statement {
     sid    = "ReadWriteOwnObjects"
     effect = "Allow"
@@ -50,8 +38,8 @@ data "aws_iam_policy_document" "workload" {
     resources = ["${var.data_bucket_arn}/${var.data_bucket_prefix}"]
   }
 
-  # ListBucket is a bucket-level action, so it needs the bucket ARN without a
-  # key suffix. The condition keeps the listing to the same prefix.
+  # Bucket-level action, so the ARN has no key suffix and the condition is
+  # what keeps the listing narrow.
   statement {
     sid    = "ListOwnPrefix"
     effect = "Allow"
@@ -66,9 +54,8 @@ data "aws_iam_policy_document" "workload" {
     }
   }
 
-  # Without these, every GetObject and PutObject against the encrypted bucket
-  # returns AccessDenied, and the error names S3 rather than KMS, which is a
-  # reliable afternoon lost.
+  # Without this, GetObject on the encrypted bucket returns AccessDenied and
+  # the error names S3 rather than KMS.
   statement {
     sid    = "UseBucketKey"
     effect = "Allow"

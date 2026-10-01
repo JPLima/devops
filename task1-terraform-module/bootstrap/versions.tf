@@ -8,9 +8,7 @@ terraform {
     }
   }
 
-  # Local state on purpose. This configuration creates the remote backend, so
-  # it cannot use it. Commit the resulting terraform.tfstate or keep it with
-  # the person who bootstrapped the account; it holds no secrets.
+  # Local state: this configuration creates the remote backend.
 }
 
 provider "aws" {

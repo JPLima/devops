@@ -1,21 +1,9 @@
-# CloudTrail, its S3 destination, and a CloudWatch log group so alarms have
-# something to filter.
-#
-# The trail is multi-region and includes global service events. A single-region
-# trail is a blind spot: an attacker who knows which region you watch simply
-# uses another one.
-
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
-
-# ---------------------------------------------------------------------------
-# Destination bucket
-# ---------------------------------------------------------------------------
 
 resource "aws_s3_bucket" "trail" {
   bucket = var.bucket_name
 
-  # An audit trail you can delete by accident is not an audit trail.
   lifecycle {
     prevent_destroy = true
   }
@@ -40,7 +28,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "trail" {
       kms_master_key_id = var.kms_key_arn
     }
 
-    # Cuts KMS request cost by reusing a data key across objects in the bucket.
     bucket_key_enabled = true
   }
 }
@@ -58,8 +45,6 @@ resource "aws_s3_bucket_ownership_controls" "trail" {
   bucket = aws_s3_bucket.trail.id
 
   rule {
-    # ACLs disabled entirely. Object ownership is the account, so a
-    # misconfigured ACL cannot expose anything.
     object_ownership = "BucketOwnerEnforced"
   }
 }
@@ -73,8 +58,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "trail" {
 
     filter {}
 
-    # An interrupted upload leaves parts that are billed but invisible in the
-    # object listing. Without this they accumulate forever.
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
@@ -118,8 +101,7 @@ data "aws_iam_policy_document" "trail_bucket" {
     actions   = ["s3:GetBucketAcl"]
     resources = [aws_s3_bucket.trail.arn]
 
-    # Without this condition the bucket would accept deliveries from any
-    # account's trail, which is a confused deputy waiting to happen.
+    # Without this the bucket accepts deliveries from any account's trail.
     condition {
       test     = "StringEquals"
       variable = "aws:SourceArn"
@@ -175,13 +157,7 @@ resource "aws_s3_bucket_policy" "trail" {
   policy = data.aws_iam_policy_document.trail_bucket.json
 }
 
-# ---------------------------------------------------------------------------
-# CloudWatch Logs destination
-#
-# S3 is the durable copy; CloudWatch is what metric filters and alarms can
-# actually read in near real time.
-# ---------------------------------------------------------------------------
-
+# S3 is the durable copy. CloudWatch is what metric filters can read.
 resource "aws_cloudwatch_log_group" "trail" {
   name              = "/aws/cloudtrail/${var.name}"
   retention_in_days = var.log_retention_days
@@ -228,23 +204,16 @@ resource "aws_iam_role_policy" "trail_to_logs" {
   policy      = data.aws_iam_policy_document.trail_to_logs.json
 }
 
-# ---------------------------------------------------------------------------
-# The trail
-# ---------------------------------------------------------------------------
-
 resource "aws_cloudtrail" "this" {
-  #checkov:skip=CKV_AWS_252: sns_topic_name fires once per delivered log file, which is noise rather than signal. Detection runs off the CloudWatch log group below, through the metric filters and alarms in modules/alerting.
+  #checkov:skip=CKV_AWS_252: sns_topic_name fires per delivered file; detection runs off the log group instead
   name           = var.name
   s3_bucket_name = aws_s3_bucket.trail.id
 
-  # Without this an attacker can cover their tracks in one region.
   is_multi_region_trail = true
 
-  # IAM and other global services report into one region only. Without this,
-  # those events are simply absent.
+  # IAM and other global services report into one region only.
   include_global_service_events = true
 
-  # Signs each log file so tampering after delivery is detectable.
   enable_log_file_validation = true
 
   kms_key_id = var.kms_key_arn
@@ -252,8 +221,8 @@ resource "aws_cloudtrail" "this" {
   cloud_watch_logs_group_arn = "${aws_cloudwatch_log_group.trail.arn}:*"
   cloud_watch_logs_role_arn  = aws_iam_role.trail_to_logs.arn
 
-  # Data events for S3 objects. Management events alone record that a bucket
-  # was created, not that its contents were read.
+  # Management events alone record that a bucket was created, not that its
+  # contents were read.
   advanced_event_selector {
     name = "S3 object access"
 

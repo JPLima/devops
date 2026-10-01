@@ -9,7 +9,7 @@ output "private_subnet_ids" {
 }
 
 output "public_subnet_ids" {
-  description = "Public subnet ids. They hold the NAT gateways and nothing else."
+  description = "Public subnet ids. They hold the NAT gateways."
   value       = module.vpc.public_subnet_ids
 }
 
@@ -19,12 +19,12 @@ output "instance_id" {
 }
 
 output "instance_private_ip" {
-  description = "Private IP of the instance. There is no public one."
+  description = "Private IP of the instance."
   value       = module.compute.private_ip
 }
 
 output "instance_security_group_id" {
-  description = "Security group attached to the instance. It has no ingress rules."
+  description = "Security group attached to the instance."
   value       = module.app_sg.id
 }
 

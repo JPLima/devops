@@ -12,12 +12,8 @@ variable "region" {
 
 variable "db_password" {
   description = <<-EOT
-    Master password for the RDS instance. Supply it out of band, never in a
-    tfvars file that is committed:
-
-      export TF_VAR_db_password="$(openssl rand -base64 24)"
-
-    Task 2 replaces this with a Secrets Manager secret.
+    RDS master password. Supply out of band, never in a committed tfvars:
+    export TF_VAR_db_password="$(openssl rand -base64 24)"
   EOT
   type        = string
   sensitive   = true
@@ -30,10 +26,8 @@ variable "db_password" {
 
 variable "web_ingress_cidrs" {
   description = <<-EOT
-    Map of allow-listed sources for HTTPS on the web tier, keyed by a stable
-    name such as "office-lisbon". The key becomes the Terraform address of the
-    rule, so adding or removing one entry produces a plan with exactly one
-    create or one destroy.
+    Allow-listed sources for HTTPS on the web tier, keyed by network name.
+    The key becomes the Terraform address of the generated rule.
   EOT
   type        = map(string)
 
@@ -48,6 +42,6 @@ variable "web_ingress_cidrs" {
 
   validation {
     condition     = !contains(values(var.web_ingress_cidrs), "0.0.0.0/0")
-    error_message = "0.0.0.0/0 is not an allow-list. Name the networks that actually need access."
+    error_message = "0.0.0.0/0 is not an allow-list. Name the networks that need access."
   }
 }

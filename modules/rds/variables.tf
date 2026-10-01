@@ -25,7 +25,7 @@ variable "engine" {
 }
 
 variable "engine_version" {
-  description = "Engine version. Pin it, so a minor upgrade is a deliberate commit."
+  description = "Engine version."
   type        = string
   default     = "16.4"
 }
@@ -43,7 +43,7 @@ variable "allocated_storage" {
 }
 
 variable "max_allocated_storage" {
-  description = "Upper bound for storage autoscaling. Set equal to allocated_storage to disable."
+  description = "Upper bound for storage autoscaling. Equal to allocated_storage disables it."
   type        = number
   default     = 100
 }
@@ -61,10 +61,7 @@ variable "username" {
 }
 
 variable "password" {
-  description = <<-EOT
-    Master password. Marked sensitive, so it is redacted from plan output, but
-    it still lands in state. Task 2 shows the Secrets Manager alternative.
-  EOT
+  description = "Master password. Redacted from plan output, but still lands in state."
   type        = string
   sensitive   = true
 }
@@ -76,13 +73,7 @@ variable "port" {
 }
 
 variable "multi_az" {
-  description = <<-EOT
-    Run a synchronous standby in a second availability zone.
-
-    True by default. High availability should be something you opt out of for
-    a throwaway environment, not something you remember to opt into for a
-    production one. Roughly doubles the instance cost.
-  EOT
+  description = "Run a synchronous standby in a second AZ. Roughly doubles the instance cost."
   type        = bool
   default     = true
 }
@@ -100,27 +91,19 @@ variable "deletion_protection" {
 }
 
 variable "skip_final_snapshot" {
-  description = "Skip the final snapshot on destroy. Never true in production."
+  description = "Skip the final snapshot on destroy."
   type        = bool
   default     = false
 }
 
 variable "kms_key_arn" {
-  description = <<-EOT
-    Customer-managed key for storage encryption, Performance Insights and
-    exported logs. Null falls back to the AWS-managed RDS key, which encrypts
-    just as well but cannot have its policy or rotation audited.
-  EOT
+  description = "Key for storage, Performance Insights and exported logs. Null uses the AWS-managed RDS key."
   type        = string
   default     = null
 }
 
 variable "monitoring_interval" {
-  description = <<-EOT
-    Seconds between enhanced monitoring samples. Enhanced monitoring reads from
-    the host rather than the hypervisor, so it sees per-process CPU and memory
-    that basic CloudWatch metrics cannot. Zero disables it.
-  EOT
+  description = "Seconds between enhanced monitoring samples. Zero disables it."
   type        = number
   default     = 60
 

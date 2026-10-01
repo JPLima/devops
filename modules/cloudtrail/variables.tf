@@ -20,7 +20,7 @@ variable "log_retention_days" {
 }
 
 variable "s3_expiration_days" {
-  description = "Days before trail objects in S3 expire. Zero keeps them forever."
+  description = "Days before trail objects expire. Zero keeps them forever."
   type        = number
   default     = 730
 }

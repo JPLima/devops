@@ -170,9 +170,8 @@ Current state:
 | `checkov` | 284 passed, 0 failed, 10 skipped |
 | `pytest` | 8 passed |
 
-Every checkov skip is an inline `#checkov:skip` next to the code it applies to,
-with the reason written out. There is no central suppression list, because that
-is where exceptions go to be forgotten. The substantive ones are explained in
+Checkov skips are inline `#checkov:skip` comments next to the code, each with
+a reason. The substantive ones are explained in
 [`task2-aws-security/README.md`](task2-aws-security/README.md#verification).
 
 `.checkov.yaml` and `task3-lambda-troubleshooting/original/.tflint.hcl` exclude

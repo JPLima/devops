@@ -1,7 +1,4 @@
 locals {
-  # Per-environment settings, indexed by workspace name. This is the bonus
-  # requirement: one configuration, several environments, no duplicated root
-  # modules to drift apart.
   environments = {
     staging = {
       vpc_cidr                = "10.10.0.0/16"
@@ -30,19 +27,12 @@ locals {
     }
   }
 
-  # No default on this lookup on purpose. A typo in the workspace name, or the
-  # default workspace, fails immediately instead of quietly deploying
-  # production sizing into a scratch workspace, or the reverse.
-  #
-  # The consequence is that terraform validate needs a workspace too:
-  #   TF_WORKSPACE=staging terraform validate
-  # which is what CI does. TF_WORKSPACE works without an initialised backend.
+  # No default: an unknown workspace fails rather than deploying the wrong
+  # sizing. So validate needs TF_WORKSPACE=staging, which is what CI sets.
   config = local.environments[terraform.workspace]
 
   name_prefix = "${var.project}-${terraform.workspace}"
 
-  # Resource-level tags. Provider default_tags covers the common ones; these
-  # are the ones the security-group module applies to individual rules.
   tags = {
     Project     = var.project
     Environment = terraform.workspace

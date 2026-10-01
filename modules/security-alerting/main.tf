@@ -1,10 +1,3 @@
-# Alarms on the CloudTrail event stream.
-#
-# CloudTrail records everything and alerts on nothing. These metric filters are
-# the part that turns a log into a signal: each one matches a pattern in the
-# trail's CloudWatch log group, publishes a count metric, and an alarm fires
-# when that count crosses zero.
-
 resource "aws_sns_topic" "security" {
   name              = "${var.name}-security-alerts"
   kms_master_key_id = var.kms_key_arn
@@ -21,11 +14,8 @@ resource "aws_sns_topic_subscription" "email" {
 }
 
 locals {
-  # One entry per thing worth waking someone for. Keyed by name, so adding a
-  # detection is one map entry and one pair of resources, not an edit to
-  # anything that already exists.
-  #
-  # Patterns are CloudWatch Logs filter syntax over the CloudTrail event JSON.
+  # Keyed by name, so adding a detection is one map entry. Patterns are
+  # CloudWatch Logs filter syntax over the CloudTrail event JSON.
   alarms = {
     "unauthorized-api-calls" = {
       description = "An API call was denied. In volume, this is someone probing."
@@ -83,9 +73,8 @@ resource "aws_cloudwatch_log_metric_filter" "this" {
     namespace = var.metric_namespace
     value     = "1"
 
-    # Without this the metric has no datapoint when nothing matches, and the
-    # alarm sits in INSUFFICIENT_DATA rather than OK. An alarm you cannot tell
-    # apart from a broken alarm is not monitoring.
+    # Without this the metric has no datapoint when nothing matches and the
+    # alarm sits in INSUFFICIENT_DATA rather than OK.
     default_value = "0"
   }
 }

@@ -1,19 +1,6 @@
-# Task 1 root module.
-#
-# One configuration, several environments, selected with terraform workspaces:
-#
-#   terraform workspace select staging && terraform apply
-#   terraform workspace select production && terraform apply
-#
-# Everything that differs between environments lives in local.environments.
+# Environments are workspaces. Everything that differs between them is in
+# local.environments.
 
-# One customer-managed key for the workload's storage: EBS root volumes, RDS
-# storage and Performance Insights. AWS-managed keys encrypt just as well, but
-# their policy and rotation schedule cannot be inspected or changed, which is
-# the part an auditor asks about.
-#
-# No service principals: EBS and RDS authorise through the caller's IAM
-# identity, so the account root statement in the module is enough.
 module "data_key" {
   source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.1.0"
 
@@ -33,22 +20,13 @@ module "vpc" {
   enable_nat_gateway = true
   single_nat_gateway = local.config.single_nat_gateway
 
-  # This task's web tier is internet-facing, so the public subnets hand out
-  # public addresses. The module defaults this to false.
   map_public_ip_on_launch = true
 
   tags = local.tags
 }
 
-# Web tier security group.
-#
-# ingress_rules is built from var.web_ingress_cidrs with a for expression, so
-# the map key of each rule is the name of the network it lets in. Add an entry
-# to the variable and the plan contains one create:
-#
-#   module.web_sg.aws_vpc_security_group_ingress_rule.this["https-from-office-porto"]
-#
-# The security group and the other rules are untouched.
+# One rule per allow-listed network, keyed by its name, so adding or removing
+# a CIDR plans a single create or destroy.
 module "web_sg" {
   source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.1.0"
 
@@ -88,11 +66,8 @@ module "web_sg" {
   tags = local.tags
 }
 
-# Database security group.
-#
-# The single ingress rule references the web tier group by id rather than by
-# CIDR. Instances can be replaced, scaled or renumbered and the rule stays
-# correct without anyone editing it.
+# References the web tier by group id rather than CIDR, so the rule survives
+# instances being replaced or scaled.
 module "db_sg" {
   source = "git::https://github.com/JPLima/devops.git//modules/security-group?ref=v1.1.0"
 
@@ -110,8 +85,7 @@ module "db_sg" {
     }
   }
 
-  # No egress. A database has no reason to open outbound connections, and
-  # leaving this empty is the point of declaring egress explicitly.
+  # A database has no reason to open outbound connections.
   egress_rules = {}
 
   tags = local.tags
@@ -126,7 +100,6 @@ module "ec2" {
   instance_type      = local.config.instance_type
   kms_key_arn        = module.data_key.arn
 
-  # Public web tier. The module defaults this to false.
   associate_public_ip_address = true
 
   tags = local.tags

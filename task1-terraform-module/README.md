@@ -133,8 +133,7 @@ its key. Adding `"office-porto"` produces a plan with one create. Removing
 `"vpn-gateway"` produces a plan with one destroy. The security group and the
 other rules do not appear, because they did not change.
 
-A variable validation rejects `0.0.0.0/0`: an allow-list that allows everything
-is not an allow-list.
+A variable validation rejects `0.0.0.0/0`.
 
 The database group has exactly one ingress rule, and it references the web tier
 group by id rather than by CIDR. Instances can be replaced or scaled and the
@@ -174,8 +173,7 @@ Task 1 does not ask for Secrets Manager and Task 2 does, so the contrast is
 visible between the two. It is redacted from plan output but it is still in
 state, which is why the state bucket is encrypted with a customer-managed key.
 
-**Tags are set once in `default_tags` on the provider.** Repeating them per
-resource is how tagging drifts.
+**Tags are set once in `default_tags` on the provider.**
 
 ## Idempotency
 
