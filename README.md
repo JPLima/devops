@@ -145,6 +145,21 @@ pip install -r tests/requirements.txt
 pytest tests -v
 ```
 
+It has also been planned against a real AWS account, which is not required to
+review it but is what turns the claims below into evidence:
+
+| Configuration | `terraform plan` |
+|---|---|
+| `task1-terraform-module`, workspace `staging` | 33 to add, 0 to change, 0 to destroy |
+| `task2-aws-security` | 110 to add, 0 to change, 0 to destroy |
+| `task3-lambda-troubleshooting/terraform` | 15 to add, 0 to change, 0 to destroy |
+
+Nothing was applied. The security group behaviour described above was verified
+the same way, by diffing the resource addresses of two plans that differ only
+in the allow-list: adding a network adds exactly one address and moves none.
+The method is in
+[`modules/security-group/README.md`](modules/security-group/README.md#verified-not-asserted).
+
 Current state:
 
 | Check | Result |

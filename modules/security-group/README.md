@@ -68,9 +68,45 @@ Delete the `https-from-office-porto` entry and the plan is:
 Plan: 0 to add, 0 to change, 1 to destroy.
 ```
 
-The security group and the Lisbon rule do not appear. Add a third office and
-the plan is one create, for the same reason: the map key is the resource
-address, and keys do not move when their neighbours change.
+The security group and the Lisbon rule do not appear, because they did not
+change. The map key is the resource address, and keys do not move when their
+neighbours change.
+
+### Verified, not asserted
+
+Two real plans against an AWS account, differing only in the allow-list, with
+the resource addresses extracted from each:
+
+```bash
+terraform plan -out=a.plan \
+  -var 'web_ingress_cidrs={"office-lisbon"="203.0.113.10/32","vpn-gateway"="203.0.113.64/26"}'
+
+terraform plan -out=b.plan \
+  -var 'web_ingress_cidrs={"office-lisbon"="203.0.113.10/32","vpn-gateway"="203.0.113.64/26","office-porto"="198.51.100.7/32"}'
+
+# extract every aws_vpc_security_group_ingress_rule address from each plan
+terraform show -json a.plan | jq -r '.resource_changes[]
+  | select(.type|contains("security_group_ingress_rule")) | .address' | sort > a.txt
+terraform show -json b.plan | jq -r '.resource_changes[]
+  | select(.type|contains("security_group_ingress_rule")) | .address' | sort > b.txt
+
+diff a.txt b.txt
+```
+
+Result:
+
+```
+2a3
+> module.web_sg.aws_vpc_security_group_ingress_rule.this["https-from-office-porto"]
+```
+
+One line added. Nothing changed, nothing removed. Every address that already
+existed is byte-for-byte identical.
+
+That last sentence is the whole point, and it is what `count` over a list
+cannot give you: there, inserting or removing an entry renumbers every index
+after it, so the addresses themselves move and Terraform destroys and recreates
+rules that nobody touched.
 
 ## Referencing another security group
 
