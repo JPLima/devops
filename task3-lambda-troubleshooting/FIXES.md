@@ -196,18 +196,6 @@ data "aws_iam_policy_document" "lambda" {
     resources = ["${aws_s3_bucket.my_bucket.arn}/invocations/*"]
   }
 
-  statement {
-    sid       = "UseBucketKey"
-    effect    = "Allow"
-    actions   = ["kms:Decrypt", "kms:GenerateDataKey"]
-    resources = [module.bucket_key.arn]
-
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["s3.${data.aws_region.current.region}.amazonaws.com"]
-    }
-  }
 }
 ```
 
@@ -227,10 +215,6 @@ resource "aws_cloudwatch_log_group" "lambda" {
 A group Lambda creates on first invocation has no retention, so logs accumulate
 forever, and it cannot be named in an IAM policy because it does not exist at
 plan time.
-
-The KMS statement is the one that costs people an afternoon. Without it, every
-`GetObject` against the encrypted bucket returns `AccessDenied`, and the error
-names S3 rather than KMS.
 
 ---
 
@@ -354,10 +338,9 @@ The bucket name comes from an environment variable Terraform sets, read at call
 time rather than at import, so a missing variable surfaces as a `RuntimeError`
 naming it instead of an opaque `Runtime.ImportModuleError`.
 
-**Fix, part two: the bucket is configured.** Versioning, SSE-KMS with a
-customer-managed key, public access blocked, ACLs disabled, a bucket policy
-denying non-TLS requests, and a lifecycle rule expiring invocation records
-after 90 days.
+**Fix, part two: the bucket is configured.** Versioning, SSE-S3 encryption,
+public access blocked, ACLs disabled, a bucket policy denying non-TLS requests,
+and a lifecycle rule expiring invocation records after 90 days.
 
 **Fix, part three: it is tested.** Eight tests in `tests/`, running against
 moto, cover the round trip, the key layout, the failure modes and the client
@@ -367,38 +350,52 @@ caching. Run them with `pytest tests -v`.
 
 ## Changes that were not defects
 
-Three additions that no symptom forced, listed separately so the eight above
-stay honest:
+Additions that no symptom forced, listed separately so the eight above stay
+honest:
 
 - **`timeout = 30` and `memory_size = 256`.** The Lambda defaults are 3 seconds
   and 128 MB, which is tight for two S3 round trips on a cold start.
-- **A customer-managed KMS key**, through the repository's shared
-  `modules/kms-key`. KMS was already in play via the bucket's encryption, so
-  this is not a new AWS service; it replaces the AWS-managed key with one whose
-  policy and rotation can be audited.
-- **`force_destroy = true` on the bucket.** So `terraform destroy` works
-  without a manual empty step. Correct for a challenge, wrong for production,
-  and flagged here rather than left for someone to discover.
 - **`reserved_concurrent_executions = 10`.** Without a reserved limit, a
-  runaway trigger consumes the account's whole concurrency pool and starves
-  every other function.
-- **The log group is encrypted with the same key as the bucket.** Log lines
-  routinely carry more than anyone intends. This needs a grant for
-  `logs.<region>.amazonaws.com` in the key policy, narrowed by encryption
-  context to log groups in this account.
+  runaway trigger consumes the account's whole concurrency pool.
+- **`force_destroy = true` on the bucket.** So `terraform destroy` works
+  without a manual empty step. Correct for a challenge, wrong for production.
+- **An explicit CloudWatch log group.** Lambda already wrote to CloudWatch
+  Logs, or would have if the role had let it, so this is not a new service.
+  It is here because a group Lambda creates on first invocation has no
+  retention and cannot be named in an IAM policy at plan time.
 
-One check is skipped rather than fixed: `CKV_AWS_116`, a dead letter queue. A
-DLQ needs SQS or SNS, and the challenge forbids introducing a new AWS service.
-The function is also invoked synchronously, where a DLQ does not apply, because
-the caller receives the error. It would be the right addition the moment an
-async trigger is added. The reasoning is inline on the resource.
+## What was deliberately not added
+
+The constraint is "limited to the current AWS services and can't introduce a
+new service". The original used three: S3, Lambda and IAM.
+
+**No KMS.** The bucket uses SSE-S3 (`AES256`) rather than a customer-managed
+key. A CMK would be better security, and it is what Tasks 1 and 2 do, but the
+original configuration had no encryption block at all, so KMS would be a new
+service here. Two checkov findings are suppressed for this reason, each with
+the constraint cited inline:
+
+| Check | What it wants |
+|---|---|
+| `CKV_AWS_145` | S3 encrypted with SSE-KMS rather than SSE-S3 |
+| `CKV_AWS_158` | The CloudWatch log group encrypted with a CMK |
+| `CKV_AWS_173` | Lambda environment variables encrypted with a CMK |
+
+Lambda already encrypts environment variables at rest with an AWS-managed key,
+so the third is about auditability rather than about the data being exposed.
+
+**No dead letter queue** (`CKV_AWS_116`). A DLQ needs SQS or SNS. The function
+is also invoked synchronously, where a DLQ does not apply because the caller
+receives the error.
+
+Both would be the right call the day the constraint is lifted.
 
 ## Constraints respected
 
 | Constraint | How |
 |---|---|
 | Cannot change the Terraform provider settings | The `provider "aws"` block is byte-for-byte unchanged, region included. See defect 7 on `versions.tf`. |
-| Limited to the current AWS services, no new ones | S3, Lambda, IAM, CloudWatch Logs and KMS. KMS was already in use by the bucket; nothing else was added. |
+| Limited to the current AWS services, no new ones | S3, Lambda and IAM, the three the original used, plus the CloudWatch log group the function already wrote to. No KMS: see below. |
 | All changes implemented via code | Every change is in `terraform/` or `lambda/`. No console steps, no manual uploads. |
 
 ## Verification

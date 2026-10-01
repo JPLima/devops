@@ -28,11 +28,6 @@ output "log_group_name" {
   value       = aws_cloudwatch_log_group.lambda.name
 }
 
-output "kms_key_arn" {
-  description = "Key encrypting the bucket and the function environment."
-  value       = module.bucket_key.arn
-}
-
 output "invoke_command" {
   description = "Invokes the function and prints the response."
   value       = "aws lambda invoke --region ${data.aws_region.current.region} --function-name ${aws_lambda_function.my_lambda.function_name} --payload '{}' --cli-binary-format raw-in-base64-out /dev/stdout"

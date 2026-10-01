@@ -114,5 +114,5 @@ and therefore cannot pass either.
 | Constraint | How it is respected |
 |---|---|
 | Cannot change the Terraform provider settings | The `provider "aws"` block is byte-for-byte unchanged, region included. `versions.tf` adds the `required_providers` constraints that were missing; see defect 7 in FIXES.md for the reasoning. |
-| Limited to the current AWS services | S3, Lambda, IAM, CloudWatch Logs and KMS. KMS was already in use by the bucket's encryption. |
+| Limited to the current AWS services | S3, Lambda and IAM, the three the original used, plus the CloudWatch log group the function already wrote to. |
 | All changes implemented via code | Everything is in `terraform/` or `lambda/`. No console steps, no manual uploads, no binary committed. |

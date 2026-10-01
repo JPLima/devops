@@ -107,7 +107,7 @@ that save someone an afternoon. Start there rather than in the `.tf` files.
 | Module | Task 1 | Task 2 | Task 3 |
 |---|:---:|:---:|:---:|
 | [`security-group`](security-group/) | yes | yes | |
-| [`kms-key`](kms-key/) | yes | yes | yes |
+| [`kms-key`](kms-key/) | yes | yes | |
 | [`vpc`](vpc/) | yes | yes | |
 | [`ec2`](ec2/) | yes | yes | |
 | [`rds`](rds/) | yes | | |
@@ -128,3 +128,7 @@ allowing HTTPS from named networks; Task 2's is private with a security group
 that has no ingress rules at all. The module does not create the security
 group precisely so that both can be expressed without a flag: the caller
 composes `security-group` and passes the ids in.
+
+Task 3 consumes nothing from here. Its brief limits it to the AWS services the
+broken project already used, so pulling in `kms-key` would have introduced
+one.

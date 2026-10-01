@@ -4,7 +4,6 @@ provider "aws" {
 }
 
 data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
 
 # FIX 1. The original hardcoded the bucket name, which is globally unique.
 resource "random_id" "bucket_suffix" {
@@ -39,37 +38,14 @@ resource "aws_s3_bucket_versioning" "my_bucket" {
   }
 }
 
-# KMS was already in play through the bucket's encryption, so this is not a
-# new service: it replaces the AWS-managed key with one we control.
-module "bucket_key" {
-  source = "git::https://github.com/JPLima/devops.git//modules/kms-key?ref=v1.1.0"
-
-  alias                   = "${var.function_name}-data"
-  description             = "Encrypts objects written by ${var.function_name}, its log group and its environment variables"
-  deletion_window_in_days = 7
-
-  # CloudWatch Logs cannot assume a role, so it needs a grant in the key
-  # policy. S3 and Lambda go through the account root statement.
-  service_principals = ["logs.${data.aws_region.current.region}.amazonaws.com"]
-
-  service_condition = {
-    test     = "ArnLike"
-    variable = "kms:EncryptionContext:aws:logs:arn"
-    values   = ["arn:aws:logs:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:log-group:*"]
-  }
-
-  tags = var.tags
-}
-
 resource "aws_s3_bucket_server_side_encryption_configuration" "my_bucket" {
+  #checkov:skip=CKV_AWS_145: SSE-S3, not SSE-KMS. The challenge forbids introducing a new AWS service and the original used none.
   bucket = aws_s3_bucket.my_bucket.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = module.bucket_key.arn
+      sse_algorithm = "AES256"
     }
-    bucket_key_enabled = true
   }
 }
 
@@ -167,8 +143,7 @@ resource "aws_s3_object" "lambda_zip" {
   # Without this a code change uploads nothing.
   etag = data.archive_file.lambda.output_md5
 
-  server_side_encryption = "aws:kms"
-  kms_key_id             = module.bucket_key.arn
+  server_side_encryption = "AES256"
 
   tags = var.tags
 
@@ -223,25 +198,6 @@ data "aws_iam_policy_document" "lambda" {
     resources = ["${aws_s3_bucket.my_bucket.arn}/invocations/*"]
   }
 
-  # Without this, PutObject on the encrypted bucket returns AccessDenied and
-  # the error names S3 rather than KMS.
-  statement {
-    sid    = "UseBucketKey"
-    effect = "Allow"
-
-    actions = [
-      "kms:Decrypt",
-      "kms:GenerateDataKey",
-    ]
-
-    resources = [module.bucket_key.arn]
-
-    condition {
-      test     = "StringEquals"
-      variable = "kms:ViaService"
-      values   = ["s3.${data.aws_region.current.region}.amazonaws.com"]
-    }
-  }
 }
 
 resource "aws_iam_role_policy" "lambda" {
@@ -253,10 +209,9 @@ resource "aws_iam_role_policy" "lambda" {
 # Created explicitly: a group Lambda makes on first invocation has no
 # retention and cannot be named in an IAM policy at plan time.
 resource "aws_cloudwatch_log_group" "lambda" {
-  name              = "/aws/lambda/${var.function_name}"
+  name = "/aws/lambda/${var.function_name}"
+  #checkov:skip=CKV_AWS_158: encrypting the group needs a CMK, and the challenge forbids introducing KMS.
   retention_in_days = var.log_retention_days
-
-  kms_key_id = module.bucket_key.arn
 
   tags = var.tags
 }
@@ -265,6 +220,7 @@ resource "aws_lambda_function" "my_lambda" {
   #checkov:skip=CKV_AWS_117:no VPC; its only dependencies are S3 and CloudWatch Logs
   #checkov:skip=CKV_AWS_272:code signing needs a signing profile, which is a release-process decision
   #checkov:skip=CKV_AWS_116:a DLQ needs SQS or SNS, and the challenge forbids a new service
+  #checkov:skip=CKV_AWS_173:env vars are already encrypted with an AWS-managed key; a CMK would introduce KMS
   function_name = var.function_name
 
   s3_bucket = aws_s3_bucket.my_bucket.bucket
@@ -295,8 +251,6 @@ resource "aws_lambda_function" "my_lambda" {
       DATA_BUCKET = aws_s3_bucket.my_bucket.bucket
     }
   }
-
-  kms_key_arn = module.bucket_key.arn
 
   tracing_config {
     mode = "PassThrough"

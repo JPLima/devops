@@ -23,7 +23,7 @@ module "vpc" {
 | Module | Task 1 | Task 2 | Task 3 |
 |---|:---:|:---:|:---:|
 | [`security-group`](modules/security-group/) | yes | yes | |
-| [`kms-key`](modules/kms-key/) | yes | yes | yes |
+| [`kms-key`](modules/kms-key/) | yes | yes | |
 | [`vpc`](modules/vpc/) | yes | yes | |
 | [`ec2`](modules/ec2/) | yes | yes | |
 | [`rds`](modules/rds/) | yes | | |
@@ -36,6 +36,9 @@ module "vpc" {
 `vpc` and `ec2` serve both the public web tier in Task 1 and the private
 workload in Task 2. See [`modules/README.md`](modules/README.md) for the
 versioning scheme and its drawback.
+
+Task 3 uses none of them. Its brief limits it to the AWS services the broken
+project already used, so it stays self-contained.
 
 ## Security groups
 
@@ -96,13 +99,13 @@ workspace on purpose. `init` on a root fetches the modules from the tag, so it
 needs network access.
 
 Currently: fmt clean, 4 roots and 10 modules validate, tflint reports nothing,
-checkov 284 passed and 0 failed, 8 tests pass. CI runs the same on every pull
+checkov 281 passed and 0 failed, 8 tests pass. CI runs the same on every pull
 request, with actions pinned to SHAs.
 
 ## Notes
 
 Nothing here has been applied. All three configurations plan cleanly against a
-real account (33, 110 and 15 resources), and the security group behaviour above
+real account (33, 110 and 13 resources), and the security group behaviour above
 was checked by diffing the addresses of two plans, but no infrastructure was
 created.
 
