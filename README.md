@@ -2,10 +2,6 @@
 
 Three tasks, one repository. Terraform throughout.
 
-The brief is transcribed in [`docs/CHALLENGE.md`](docs/CHALLENGE.md), so the
-requirements and the work sit side by side. A Portuguese translation is in
-[`docs/CHALLENGE.pt.md`](docs/CHALLENGE.pt.md).
-
 | Task | What it is | Where |
 |---|---|---|
 | 1 | VPC, EC2 and RDS from modules, remote state in S3 with DynamoDB locking, environments as workspaces | [`task1-terraform-module/`](task1-terraform-module/) |
@@ -64,7 +60,6 @@ devops/
 │   ├── original/           the broken files, unmodified, with provenance
 │   ├── terraform/ lambda/ tests/
 │   └── FIXES.md            eight defects, cause and fix for each
-├── docs/                   the brief, its translation, and the design spec
 └── .github/workflows/ci.yml
 ```
 
@@ -227,6 +222,3 @@ The decisions worth arguing about, and where each is argued:
 | `ignore_changes = [ami]` on instances | [`task1-terraform-module/README.md`](task1-terraform-module/README.md#design-choices) |
 | SSM Session Manager rather than a bastion on port 22 | [`task2-aws-security/README.md`](task2-aws-security/README.md#compute) |
 | Pinning provider versions in Task 3 despite the constraint | [`task3-lambda-troubleshooting/FIXES.md`](task3-lambda-troubleshooting/FIXES.md#7-nothing-pinned-the-provider-version) |
-
-The design this was built from is in
-[`docs/superpowers/specs/`](docs/superpowers/specs/).
