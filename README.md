@@ -1,17 +1,17 @@
 # DevOps Code Challenge
 
-Three tasks, one repository. Terraform throughout.
-
-| Task | What it is | Where |
+| Task | | |
 |---|---|---|
-| 1 | VPC, EC2 and RDS from modules, remote state in S3 with DynamoDB locking, environments as workspaces | [`task1-terraform-module/`](task1-terraform-module/) |
-| 2 | A private workload with least-privilege IAM, encryption everywhere, CloudTrail, AWS Config and alarms | [`task2-aws-security/`](task2-aws-security/) |
-| 3 | A broken Lambda and Terraform project, diagnosed and fixed | [`task3-lambda-troubleshooting/`](task3-lambda-troubleshooting/) |
+| 1 | VPC, EC2 and RDS from modules, S3 backend with DynamoDB locking, environments as workspaces | [`task1-terraform-module/`](task1-terraform-module/) |
+| 2 | Private workload, least-privilege IAM, encryption, CloudTrail, Config, alarms | [`task2-aws-security/`](task2-aws-security/) |
+| 3 | A broken Lambda and Terraform project, fixed | [`task3-lambda-troubleshooting/`](task3-lambda-troubleshooting/) |
+
+Each task has its own README. Task 3's writeup is [`FIXES.md`](task3-lambda-troubleshooting/FIXES.md).
 
 ## Modules
 
-Every module lives once, in [`modules/`](modules/), and the tasks consume them
-by git URL at a version tag:
+Every module lives once, in [`modules/`](modules/). No task has a `modules/`
+directory of its own. They are consumed by git URL at a tag:
 
 ```hcl
 module "vpc" {
@@ -19,11 +19,6 @@ module "vpc" {
   ...
 }
 ```
-
-No task has a `modules/` directory of its own. `vpc` serves Task 1's public
-web tier and Task 2's private workload from the same code; so does `ec2`. See
-[`modules/README.md`](modules/README.md) for the full list, the versioning
-scheme, and the one real drawback of pinning to tags.
 
 | Module | Task 1 | Task 2 | Task 3 |
 |---|:---:|:---:|:---:|
@@ -38,53 +33,13 @@ scheme, and the one real drawback of pinning to tags.
 | [`security-alerting`](modules/security-alerting/) | | yes | |
 | [`secret`](modules/secret/) | | yes | |
 
-## Layout
-
-```
-devops/
-├── modules/                every module, once
-│   ├── security-group/     one resource per rule
-│   ├── kms-key/            customer-managed key, rotation on
-│   ├── vpc/                subnets, NAT, optional flow logs and endpoints
-│   ├── ec2/                encrypted storage, IMDSv2, private by default
-│   ├── rds/                private, encrypted, enhanced monitoring
-│   ├── iam-instance-role/  scoped to one bucket, one prefix, one key
-│   ├── cloudtrail/         multi-region, validated, to S3 and CloudWatch
-│   ├── aws-config/         recorder, delivery channel, twenty rules
-│   ├── security-alerting/  metric filters and alarms
-│   └── secret/             generated credential in Secrets Manager
-├── task1-terraform-module/
-│   └── bootstrap/          creates the state bucket and lock table
-├── task2-aws-security/
-├── task3-lambda-troubleshooting/
-│   ├── original/           the broken files, unmodified, with provenance
-│   ├── terraform/ lambda/ tests/
-│   └── FIXES.md            eight defects, cause and fix for each
-└── .github/workflows/ci.yml
-```
-
-Each task has its own README with prerequisites, how to run it, and the design
-choices behind it.
-
-## Prerequisites
-
-- Terraform >= 1.9
-- Python 3.12 or newer, for the Task 3 tests
-- AWS credentials, only if you intend to apply. Nothing here needs them to
-  validate.
-
-Optional, for the same checks CI runs:
-
-```bash
-brew install tflint checkov
-```
+`vpc` and `ec2` serve both the public web tier in Task 1 and the private
+workload in Task 2. See [`modules/README.md`](modules/README.md) for the
+versioning scheme and its drawback.
 
 ## Security groups
 
-This was a specific requirement, and it drove the shared
-[`modules/security-group/`](modules/security-group/).
-
-Every rule is its own Terraform resource, addressed by a human-written name:
+Every rule is its own resource, keyed by name:
 
 ```hcl
 ingress_rules = {
@@ -101,124 +56,67 @@ Remove the Porto entry and the plan is one line:
 Plan: 0 to add, 0 to change, 1 to destroy.
 ```
 
-The security group and the Lisbon rule do not appear, because they did not
-change. The two common alternatives both fail that test: inline `ingress`
-blocks rewrite the whole attribute, and `count` over a list shifts every index
-after the one removed, so taking out one rule destroys and recreates three.
+Inline `ingress` blocks rewrite the whole attribute instead, and `count` over a
+list shifts every index after the one removed. Details and the plan diff that
+shows it in [`modules/security-group/README.md`](modules/security-group/README.md).
 
-The module's README has the full comparison and the reasoning.
+## Prerequisites
 
-## Verification
+Terraform >= 1.9, and Python 3.12+ for the Task 3 tests. AWS credentials only
+if you intend to apply. Optionally `brew install tflint checkov` for the checks
+CI runs.
 
-Nothing in this repository has been applied to a live AWS account. The
-deliverable is validated code, and this is what backs that claim:
+## Checks
 
 ```bash
 terraform fmt -check -recursive
 
-# Root configurations. init fetches the modules from the git tag, so this
-# needs network access.
 for dir in task1-terraform-module task1-terraform-module/bootstrap \
            task2-aws-security task3-lambda-troubleshooting/terraform; do
   terraform -chdir="$dir" init -backend=false -input=false
   TF_WORKSPACE=staging terraform -chdir="$dir" validate
 done
 
-# Every module on its own, so a break is attributed to the module rather
-# than to whichever root happened to use it.
 for dir in modules/*/; do
   terraform -chdir="$dir" init -backend=false -input=false
   terraform -chdir="$dir" validate
 done
 
 TF_WORKSPACE=staging tflint --recursive --minimum-failure-severity=warning
-checkov   # reads .checkov.yaml
+checkov
 
 cd task3-lambda-troubleshooting
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r tests/requirements.txt
-pytest tests -v
+pytest tests
 ```
 
-It has also been planned against a real AWS account, which is not required to
-review it but is what turns the claims below into evidence:
+`TF_WORKSPACE` is needed because Task 1 has no settings for the `default`
+workspace on purpose. `init` on a root fetches the modules from the tag, so it
+needs network access.
 
-| Configuration | `terraform plan` |
-|---|---|
-| `task1-terraform-module`, workspace `staging` | 33 to add, 0 to change, 0 to destroy |
-| `task2-aws-security` | 110 to add, 0 to change, 0 to destroy |
-| `task3-lambda-troubleshooting/terraform` | 15 to add, 0 to change, 0 to destroy |
+Currently: fmt clean, 4 roots and 10 modules validate, tflint reports nothing,
+checkov 284 passed and 0 failed, 8 tests pass. CI runs the same on every pull
+request, with actions pinned to SHAs.
 
-Nothing was applied. The security group behaviour described above was verified
-the same way, by diffing the resource addresses of two plans that differ only
-in the allow-list: adding a network adds exactly one address and moves none.
-The method is in
-[`modules/security-group/README.md`](modules/security-group/README.md#verified-not-asserted).
+## Notes
 
-Current state:
+Nothing here has been applied. All three configurations plan cleanly against a
+real account (33, 110 and 15 resources), and the security group behaviour above
+was checked by diffing the addresses of two plans, but no infrastructure was
+created.
 
-| Check | Result |
-|---|---|
-| `terraform fmt -check -recursive` | clean |
-| `terraform validate`, 4 roots and 10 modules | all pass |
-| `tflint --recursive` | no findings |
-| `checkov` | 284 passed, 0 failed, 10 skipped |
-| `pytest` | 8 passed |
+Region is `eu-west-1`, except Task 3, which stays on `us-east-1` because the
+challenge forbids touching its provider block.
 
-Checkov skips are inline `#checkov:skip` comments next to the code, each with
-a reason. The substantive ones are explained in
-[`task2-aws-security/README.md`](task2-aws-security/README.md#verification).
+The root user cannot be disabled through Terraform or any AWS API. Task 2 does
+the part that can be codified: Config rules for root MFA and root access keys,
+plus an alarm on any root activity.
 
-`.checkov.yaml` and `task3-lambda-troubleshooting/original/.tflint.hcl` exclude
-one directory from both tools: the challenge's original broken files, kept
-unmodified as the evidence behind `FIXES.md`. Linting them would report the
-very defects that document explains, and hardening them would destroy the
-before-and-after it depends on.
+Task 3's upstream repository no longer exists. The original broken files come
+from the first commit of a public copy and are preserved in
+[`task3-lambda-troubleshooting/original/`](task3-lambda-troubleshooting/original/)
+with instructions to verify them.
 
-`.checkov.yaml` also suppresses one check repository-wide, `CKV_TF_1`, which
-wants module sources pinned to a commit hash rather than a tag. That is a
-policy decision rather than a per-resource exception, the reasoning is written
-out next to the suppression, and it is only sound with a tag protection rule
-in place. See [`modules/README.md`](modules/README.md#tags-must-be-immutable).
-
-`TF_WORKSPACE=staging` is needed because Task 1 indexes its per-environment
-settings by workspace name and deliberately has no entry for `default`. An
-unknown workspace fails at plan time rather than deploying the wrong sizing.
-
-CI runs all of the above on every pull request. Actions are pinned to commit
-SHAs rather than tags, since a tag can be moved.
-
-## Assumptions
-
-Stated so a reviewer does not have to guess:
-
-- **Region `eu-west-1`** for Tasks 1 and 2. Task 3 stays on `us-east-1`,
-  because the challenge forbids changing its provider settings.
-- **Nothing is applied.** No AWS account was used. Where a claim would need a
-  real apply to prove, it is labelled as such rather than asserted. Task 3's
-  IAM policy is the clearest example: the tests cover the handler, and the
-  policy is reviewed statement by statement in `FIXES.md`.
-- **One account, several environments.** Task 1 uses workspaces, which is the
-  bonus as the challenge words it. Separate accounts per environment would want
-  separate configurations; `task1-terraform-module/locals.tf` is where that
-  decision would be revisited.
-- **The root user cannot be disabled by Terraform**, or by any AWS API. Task 2
-  covers the part that is codifiable: two AWS Config rules that report on root
-  MFA and root access keys, and a CloudWatch alarm that fires the moment root
-  does anything.
-- **Task 3's upstream repository is gone.** The original broken files come from
-  a public copy's first commit, preserved verbatim in
-  `task3-lambda-troubleshooting/original/` with instructions to verify.
-
-## Design notes
-
-The decisions worth arguing about, and where each is argued:
-
-| Decision | Where |
-|---|---|
-| One resource per security group rule | [`modules/security-group/README.md`](modules/security-group/README.md) |
-| Customer-managed KMS keys, one per purpose | [`modules/kms-key/README.md`](modules/kms-key/README.md) |
-| Workspaces rather than a directory per environment | [`task1-terraform-module/README.md`](task1-terraform-module/README.md#design-choices) |
-| `ignore_changes = [ami]` on instances | [`task1-terraform-module/README.md`](task1-terraform-module/README.md#design-choices) |
-| SSM Session Manager rather than a bastion on port 22 | [`task2-aws-security/README.md`](task2-aws-security/README.md#compute) |
-| Pinning provider versions in Task 3 despite the constraint | [`task3-lambda-troubleshooting/FIXES.md`](task3-lambda-troubleshooting/FIXES.md#7-nothing-pinned-the-provider-version) |
+Checkov skips are inline, each with a reason, except `CKV_TF_1` which is a
+repository-wide decision explained in `.checkov.yaml`.
